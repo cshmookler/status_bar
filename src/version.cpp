@@ -1,10 +1,10 @@
 // Local includes
 #include "../src/version.hpp"
 
-namespace stm {
+namespace status_bar {
 
 const char* get_runtime_version() {
-    return ::stm::compiletime_version;
+    return ::status_bar::compiletime_version;
 }
 
-} // namespace stm
+} // namespace status_bar

@@ -41,7 +41,7 @@ A dependency likely passed invalid compiler flags. Try using a different compile
 python3 clear_cache.py
 ```
 
-**2.** If you ran 'conan build', delete the build directory (do not do this if you ran 'conan create').
+**2.** Remove build files.
 
 ```bash
 python3 clean.py
@@ -79,4 +79,17 @@ See the official [Conan FAQ](https://docs.conan.io/2/knowledge/faq.html) for hel
 
 ## **TODO**
 
-- [X] Start development.
+- [X] date and time
+- [ ] disk space
+- [ ] memory
+- [ ] cpu usage
+- [ ] battery percentage
+- [ ] battery time remaining
+- [ ] backlight percentage
+- [ ] network SSID
+- [ ] wifi percentage
+- [ ] bluetooth device
+- [ ] volume mute
+- [ ] volume percentage
+- [ ] microphone status
+- [ ] camera status

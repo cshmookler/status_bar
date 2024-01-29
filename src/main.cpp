@@ -53,6 +53,7 @@ int success(const std::string_view& msg) {
 }
 
 int main(int argc, char** argv) {
+    // Parse arguments
     for (int arg_i = 1; arg_i < argc; arg_i++) {
         bool match_found = false;
         for (const opt_t& opt : options) {
@@ -65,7 +66,7 @@ int main(int argc, char** argv) {
                     case opt_id::none: break;
                     case opt_id::help: return success(proper_usage);
                     case opt_id::version:
-                        return success(stm::compiletime_version);
+                        return success(status_bar::compiletime_version);
                 }
                 match_found = true;
                 break;
@@ -81,14 +82,35 @@ int main(int argc, char** argv) {
         }
     }
 
+    // Start the X server
+    Display* display = XOpenDisplay(nullptr);
+    if (display == nullptr) {
+        return failure("Error: XOpenDisplay: Failed to open display");
+    }
+
     while (true) {
+        std::string status = " ";
+
+        std::string time_string(100, '\0');
         std::time_t now = std::time(nullptr);
-        std::string str(100, '\0');
-        str.resize(std::strftime(
-                str.data(), str.size(), "%F %a %T", std::localtime(&now)));
-        std::cout << str << std::endl;
+        time_string.resize(std::strftime(
+                time_string.data(),
+                time_string.size(),
+                "%Z %F %a %T",
+                std::localtime(&now)));
+        status += time_string + " ";
+
+        if (XStoreName(display, DefaultRootWindow(display), status.data())
+            < 0) {
+            return failure("Error: XStoreName: Allocation failed");
+        }
+        XFlush(display);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    if (XCloseDisplay(display) < 0) {
+        return failure("Error: XCloseDisplay: Failed to close display");
     }
 
     return 0;

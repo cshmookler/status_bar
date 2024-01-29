@@ -6,6 +6,6 @@
 
 TEST(version_test, runtime_version_matches_compiletime_version) {
     ASSERT_EQ(
-            stm::get_runtime_version(),
-            stm::compiletime_version);
+            status_bar::get_runtime_version(),
+            status_bar::compiletime_version);
 }
