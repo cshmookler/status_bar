@@ -27,10 +27,13 @@ Checks: '
     zircon-*,
     -modernize-use-trailing-return-type,
     -fuchsia-default-arguments-calls,
+    -fuchsia-default-arguments-declarations,
+    -fuchsia-trailing-return
     -cppcoreguidelines-avoid-magic-numbers,
     -altera-unroll-loops,
     -altera-id-dependent-backward-branch,
     -altera-struct-pack-align,
+    -concurrency-*,
 '
 CheckOptions: [
     { key: readability-identifier-naming.NamespaceCase,         value: lower_case               },

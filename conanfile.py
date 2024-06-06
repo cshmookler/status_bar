@@ -1,6 +1,6 @@
 """status_bar root Conan file"""
-from configparser import ConfigParser
-from dataclasses import dataclass, field
+
+from importlib import import_module
 import os
 from typing import List, Dict
 
@@ -8,32 +8,19 @@ from conan import ConanFile
 from conan.errors import ConanException
 from conan.tools.files import copy as copy_file
 from conan.tools.gnu import PkgConfigDeps
+from conan.tools.gnu.pkgconfigdeps import _PCGenerator, _PCContentGenerator
 from conan.tools.meson import Meson, MesonToolchain
 from conan.tools.scm import Git
 
-required_conan_version = ">=2.0.6"
 
+this_dir: str = os.path.dirname(__file__)
 
-@dataclass
-class Module:
-    """Dependency module information"""
+placeholder_version: str = "0.0.0"
 
-    name: str
-    status: bool
-
-
-@dataclass
-class Dependency:
-    """Dependency information"""
-
-    name: str
-    version: str
-    status: bool
-    modules: List[Module] = field(default_factory=list)
+required_conan_version = ">=2.3.0"
 
 
 class status_bar(ConanFile):
-    """status_bar"""
 
     # Required
     name = "status_bar"
@@ -42,23 +29,36 @@ class status_bar(ConanFile):
     license = "Zlib"
     author = "Caden Shmookler (cshmookler@gmail.com)"
     url = "https://github.com/cshmookler/status_bar.git"
-    description = (
-        "Status bar for dwm. Customizable at runtime and updates instantly."
-    )
+    description = "Status bar for [dwm](https://dwm.suckless.org). Customizable at runtime and updates instantly."
     topics = []
 
     # Configuration
     package_type = "application"
     settings = "os", "compiler", "build_type", "arch"
-    options = {"shared": [True, False], "fPIC": [True, False]}
-    default_options = {"shared": False, "fPIC": True}
+    options = {
+        "quit_after_generate": [True, False],
+    }
+    default_options = {
+        "quit_after_generate": False,
+    }
     build_policy = "missing"
 
-    # Essential files
-    exports_sources = ".git/*", "include/*", "src/*", "meson.build", "LICENSE"
+    # Files needed by Conan to resolve version and dependencies
+    exports = (
+        os.path.join(".git", "*"),
+        "update_deps.py",
+        "binary_config.json",
+    )
 
-    # Other
-    _dependencies: List[str] = ["gtest/1.14.0", "xorg/system"]
+    # Files needed by Conan to build from source
+    exports_sources = (
+        os.path.join("build_scripts", "*"),
+        os.path.join("src", "*"),
+        "meson.build",
+    )
+
+    # External includes
+    _binary_config_module = import_module("update_deps")
 
     def set_version(self):
         """Get project version from Git"""
@@ -66,137 +66,158 @@ class status_bar(ConanFile):
         try:
             self.version = git.run("describe --tags").partition("-")[0]
         except ConanException:
-            self.version = "0.0.0"
-
-    def config_options(self):
-        """Change available options"""
-        if self.settings.os == "Windows":
-            del self.options.fPIC
-
-    def configure(self):
-        """Change behavior based on set options"""
-        if self.options.shared:
-            self.options.rm_safe("fPIC")
+            # Set a placeholder version if an error is encountered while using Git
+            self.version = placeholder_version
 
     def build_requirements(self):
         """Declare dependencies of the build system"""
-        self.tool_requires("meson/1.2.1")
-        self.tool_requires("pkgconf/2.0.3")
+        self.tool_requires("meson/1.4.0")
+        self.tool_requires("pkgconf/2.2.0")
 
     def requirements(self):
-        """Declare library dependencies"""
-        for dep in self._dependencies:
-            self.requires(dep)
+        """Resolve and declare dependencies"""
+        self._binaries = self._binary_config_module.Binaries()
+        self._binaries.read()
+
+        for binary in self._binaries:
+            for dep in binary.dependencies:
+                # Ignore deactivated dependencies
+                if not dep.enabled:
+                    continue
+
+                # Declare dependencies
+                if not dep.link_preference:
+                    self.requires(dep.name + "/" + dep.version)
+                else:
+                    self.requires(
+                        dep.name + "/" + dep.version,
+                        options={"shared": dep.dynamic},
+                    )
 
     def layout(self):
         """Set the layout of the build files"""
         self.folders.build = os.path.join(self.recipe_folder, "build")
         self.folders.generators = os.path.join(self.folders.build, "generators")
-        self._dependency_config = os.path.join(
-            self.recipe_folder, "dependencies.ini"
-        )
-
-    def _read_dep_config(self) -> List[Dependency]:
-        """Reads dependency information from the dependency configuration file"""
-        deps: List[Dependency] = []
-        parser = ConfigParser()
-        parser.read(self._dependency_config)
-        section = parser["dependencies"]
-        for dep in section:
-            name = dep.rsplit("/", 1)[0]
-            version = dep.rsplit("/", 1)[1]
-            status = True if section[dep] == "yes" else False
-            deps.append(Dependency(name, version, status))
-        # for section in parser.sections():
-        #     name = section.rsplit("/", 1)[0]
-        #     version = section.rsplit("/", 1)[1]
-        #     deps.append(Dependency(name, version))
-        #     for module in parser[section]:
-        #         status = parser[section][module]
-        #         deps[-1].modules.append(
-        #             Module(module, True if status == "yes" else False)
-        #         )
-        return deps
-
-    def _write_dep_config(self, deps: List[Dependency]) -> None:
-        """Write dependency information to the dependency configuration file"""
-        parser = ConfigParser()
-        parser.add_section("dependencies")
-        for dep in deps:
-            key = dep.name + "/" + dep.version
-            value = "yes" if dep.status else "no"
-            parser["dependencies"][key] = value
-            # section = dep.name + "/" + dep.version
-            # parser.add_section(section)
-            # for module in dep.modules:
-            #     parser[section][module.name] = "yes" if module.status else "no"
-        with open(self._dependency_config, "w") as config_file:
-            parser.write(config_file, space_around_delimiters=True)
 
     def generate(self):
         """Generate the build system"""
+        # Generate .pc files for dependencies
         deps = PkgConfigDeps(self)
         deps.generate()
 
-        meson_dep_dict: Dict[str, Dependency] = {}
-        for package_conf, content in deps.content.items():
-            dep_name = content.split("\nName")[1].split("\n")[0].strip(": ")
-            # dep_name = component_info[0]
-            # dep_component = component_info[1]
-            # try:
-            #     meson_dep_dict[dep_name].modules.append(
-            #         Module(dep_component, True)
-            #     )
-            # except KeyError:
-            meson_dep_dict[dep_name] = Dependency(
-                dep_name,
-                content.split("\nVersion")[1].split("\n")[0].strip(": "),
-                True,
+        # Resolve dependency components
+        resolved_dependencies = {}
+        for require, dep in self.dependencies.host.items():
+            # Name and version of the dependency
+            dependency_name_and_version: str = (
+                dep.ref.name + "/" + str(dep.ref.version)
             )
-            # meson_dep_dict[dep_name].modules.append(
-            #     Module(dep_component, True)
-            # )
 
-        if os.path.isfile(self._dependency_config):
-            # Merge dependencies from the configuration file with dependencies from Conan
-            user_deps: List[Dependency] = self._read_dep_config()
-            for dep in user_deps:
-                # TODO: check version before overwriting (also, store version in the dependency configuration file!)
-                meson_dep_dict[dep.name] = dep
+            # Create a dictionary for storing components of this dependency
+            if dependency_name_and_version not in resolved_dependencies:
+                resolved_dependencies[dependency_name_and_version] = {}
 
-        meson_dep_list: List[Dependency] = list(meson_dep_dict.values())
-        self._write_dep_config(meson_dep_list)
+            # This class is used internally by Conan to get dependency component information and generate PkgConfig files
+            pc_generator = _PCGenerator(deps, require, dep)
 
-        meson_deps_classless = [
-            [
-                dep.name,
-                [module.name for module in dep.modules if module.status],
-                dep.version,
-            ]
-            for dep in meson_dep_list
-            if dep.status
-        ]
+            # Add the name of the package as the sole component if it does not have any components
+            if not pc_generator._dep.cpp_info.has_components:
+                sole_component_pc_info = (
+                    pc_generator._content_generator._get_context(
+                        pc_generator._package_info()
+                    )
+                )
+                sole_component_name = str(sole_component_pc_info["name"])
+                sole_component_version = str(sole_component_pc_info["version"])
+                resolved_dependencies[dependency_name_and_version][
+                    sole_component_name
+                ] = self._binary_config_module.Component(
+                    name=sole_component_name,
+                    version=sole_component_version,
+                    enabled=True,
+                )
+
+            # Accumulate all components of the dependency
+            for component_info in pc_generator._components_info():
+                component_pc_info = (
+                    pc_generator._content_generator._get_context(component_info)
+                )
+                component_name = str(component_pc_info["name"])
+                component_version = str(component_pc_info["version"])
+                resolved_dependencies[dependency_name_and_version][
+                    component_name
+                ] = self._binary_config_module.Component(
+                    name=component_name,
+                    version=component_version,
+                    enabled=True,
+                )
+
+        # Explicitly declared binaries and their respective dependencies
+        declared_binaries: dict = self._binaries.json()
+
+        # Merge resolved dependency components with dependency components explicitly declared within the binary configuration
+        for binary, binary_info in declared_binaries.items():
+            for dep_name_and_version, dep_info in binary_info[
+                "dependencies"
+            ].items():
+                if dep_name_and_version not in resolved_dependencies:
+                    continue
+
+                # Remove components from the list of declared components that do not exist within the resolved components list
+                for component_name, component_info in dep_info["components"].items():
+                    if (
+                        component_name
+                        not in resolved_dependencies[dep_name_and_version]
+                    ):
+                        dep_info["components"].pop(component_name)
+
+                # Add missing components to the list of declared components
+                # Add a temporary version to components that don't have one
+                # Temporary versions are excluded from the JSON output
+                for component_name, component_info in resolved_dependencies[
+                    dep_name_and_version
+                ].items():
+                    if component_name not in dep_info["components"]:
+                        # Add the missing component with a temporary version
+                        dep_info["components"][component_name] = {
+                            "version": component_info.version,
+                            "enabled": component_info.enabled,
+                            "exclude_version_from_json": True,
+                        }
+                        continue
+
+                    declared_component_info = dep_info["components"][component_name]
+                    if type(declared_component_info) == bool:
+                        # Add a temporary version to an existing component
+                        dep_info["components"][component_name] = {
+                            "version": component_info.version,
+                            "enabled": declared_component_info,
+                            "exclude_version_from_json": True,
+                        }
+                        
+
+        self._binaries.structured(
+            raw_json=declared_binaries,
+            mark_temporary_versions=True,
+        )
+        self._binaries.write()
 
         toolchain = MesonToolchain(self)
         toolchain.properties = {
             "_name": self.name,
             "_version": self.version,
-            "_type": str(self.package_type),
-            "_deps": meson_deps_classless,
+            "_binaries": self._binaries.unstructured(),
         }
         toolchain.generate()
 
+        if self.options.quit_after_generate:
+            exit(0)
+
     def build(self):
-        """Build the test project"""
+        """Build this project"""
         self._build_folder = os.path.join(self.recipe_folder, "build")
         meson = Meson(self)
         meson.configure()
-        copy_file(
-            self,
-            "version.hpp",
-            self.build_folder,
-            self.source_folder + "/src/",
-        )
         meson.build()
         copy_file(
             self,
@@ -205,14 +226,3 @@ class status_bar(ConanFile):
             self.source_folder,
         )
         meson.test()
-
-    def package(self):
-        """Install project headers and compiled libraries"""
-        meson = Meson(self)
-        meson.install()
-
-    def package_info(self):
-        """Package information"""
-        self.cpp_info.libs = [self.name]
-        self.cpp_info.includedirs = ["include"]
-        self.cpp_info.bindirs = ["bin"]

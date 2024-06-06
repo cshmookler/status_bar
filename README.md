@@ -1,81 +1,35 @@
 # **status_bar**
 
-Status bar for dwm. Customizable at runtime and updates instantly.
+Status bar for [dwm](https://dwm.suckless.org). Customizable at runtime and updates instantly.
 
-## **Build and install this project with Conan (for Unix-like systems)**
+## Build from Source
 
-**1.** Install a C++ compiler (Example: clang), Git, and Python >=3.7 (Example: apt).
+### 1.&nbsp; Install Git, Python, and a C++ compiler
 
-```bash
-sudo apt install -y clang git python3
-```
-
-**2.** Run the build script.
+#### Linux (Ubuntu):
 
 ```bash
-python3 build.py
+sudo apt install git python3 build-essential
 ```
 
-<details>
-<summary> <strong>Click here if you get an error while building</strong> </summary>
-
-#### Failed to build dependency from source
-
-```
-CMake Error at /usr/local/share/cmake-3.26/Modules/CmakeTestCXXCompiler.cmake:60 (message):
-  The C++ compiler
-
-    "/usr/bin/c++"
-
-  is not able to compile a simple test program.
-```
-
-<details>
-<summary> <strong>Click here if this is your error</strong> </summary>
-
-A dependency likely passed invalid compiler flags. Try using a different compiler.
-
-**1.** Clear the Conan cache.
+#### Linux (Arch):
 
 ```bash
-python3 clear_cache.py
+sudo pacman -S git python base-devel
 ```
 
-**2.** Remove build files.
+### 2.&nbsp; Clone this template
 
-```bash
-python3 clean.py
+```
+git clone https://github.com/cshmookler/status_bar.git
+cd status_bar
 ```
 
-**3.** Set a different compiler for CMake to use.
+### 3.&nbsp; Build from source
 
-- For Clang:
-
-```bash
-export CC=clang
-export CXX=clang++
 ```
-
-- For GCC:
-
-```bash
-export CC=gcc
-export CXX=g++
+python build.py
 ```
-
-**4.** Rerun the build script.
-
-```bash
-python3 build.py
-```
-
-</details>
-
-#### Conan related error
-
-See the official [Conan FAQ](https://docs.conan.io/2/knowledge/faq.html) for help with common errors.
-
-</details>
 
 ## **TODO**
 
@@ -83,6 +37,7 @@ See the official [Conan FAQ](https://docs.conan.io/2/knowledge/faq.html) for hel
 - [ ] disk space
 - [ ] memory
 - [ ] cpu usage
+- [ ] cpu temperature
 - [ ] battery percentage
 - [ ] battery time remaining
 - [ ] backlight percentage

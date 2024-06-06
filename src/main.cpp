@@ -1,117 +1,143 @@
 // Standard includes
-#include <array>
 #include <chrono>
-#include <ctime>
 #include <iostream>
+#include <string>
 #include <thread>
 
 // External includes
 #include <X11/Xlib.h>
+#include <argparse/argparse.hpp>
+#include <sys/inotify.h>
 
 // Local includes
+#include "status.hpp"
 #include "version.hpp"
 
-constexpr std::string_view proper_usage = {
-    "\n"
-    "Options:\n"
-    "    -h, --help         # List commands and options\n"
-    "    -v, --version      # Show version\n"
-    "\n"
-};
+int loop(Display* display, const std::string& status);
 
-enum class opt_id {
-    none,
-    help,
-    version,
-};
-
-struct opt_t {
-    std::array<std::string_view, 2> patterns;
-    opt_id id = opt_id::none;
-    bool value = false;
-};
-
-constexpr std::array<opt_t, 2> options = {
-    {
-     { { "-h", "--help" }, opt_id::help },
-     { { "-v", "--version" }, opt_id::version },
-     }
-};
-
-int failure(const std::string_view& msg) {
-    std::cout << "\n" << msg << "\n" << proper_usage;
-    return 1;
-}
-
-int success() {
-    return 0;
-}
-
-int success(const std::string_view& msg) {
-    std::cout << msg;
-    return success();
-}
+[[nodiscard]] std::string format_status(const std::string& status);
 
 int main(int argc, char** argv) {
-    // Parse arguments
-    for (int arg_i = 1; arg_i < argc; arg_i++) {
-        bool match_found = false;
-        for (const opt_t& opt : options) {
-            for (const std::string_view& pattern : opt.patterns) {
-                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                if (pattern.compare(argv[arg_i]) != 0) {
-                    continue;
-                }
-                switch (opt.id) {
-                    case opt_id::none: break;
-                    case opt_id::help: return success(proper_usage);
-                    case opt_id::version:
-                        return success(status_bar::compiletime_version);
-                }
-                match_found = true;
-                break;
-            }
-            if (match_found) {
-                break;
-            }
-        }
+    // Setup the argument parser
+    argparse::ArgumentParser argparser{ "status_bar",
+                                        status_bar::get_runtime_version() };
 
-        if (! match_found) {
-            // positional argument
-            return failure("Error: Unknown argument");
-        }
+    argparser.add_argument("-p", "--path")
+            .metavar("PATH")
+            .nargs(1)
+            .help("the path to the notification file\n   ")
+            .default_value("/tmp/status_bar");
+
+    argparser.add_argument("-s", "--status")
+            .metavar("STATUS")
+            .nargs(1)
+            .help("custom status with the following interpreted sequences:\n"
+                  "    %%    a literal %\n"
+                  "    %T    current date and time\n"
+                  "    %D    disk usage\n"
+                  "    %M    memory usage\n"
+                  "    %C    CPU usage\n"
+                  "    %b    battery state\n"
+                  "    %B    battery percentage\n"
+                  "    %L    backlight percentage\n"
+                  "    %w    network SSID\n"
+                  "    %W    WIFI percentage\n"
+                  "    %P    bluetooth devices\n"
+                  "    %v    volume mute\n"
+                  "    %V    volume percentage\n"
+                  "    %E    microphone state\n"
+                  "    %A    camera state\n   ")
+            .default_value("%V%%v | %v%%m | %P | %W%%w | %w | %L%%l | %B%%b | "
+                           "%b | %C%%c | %M%%m | %D%%d | %T");
+
+    // Parse arguments
+    try {
+        argparser.parse_args(argc, argv);
+    }
+    catch (const std::exception& err) {
+        std::cerr << err.what() << "\n\n";
+        std::cerr << argparser;
+        std::exit(1);
     }
 
-    // Start the X server
+    // Open the X server display
     Display* display = XOpenDisplay(nullptr);
     if (display == nullptr) {
-        return failure("Error: XOpenDisplay: Failed to open display");
+        std::cout << "Error: XOpenDisplay: Failed to open display\n";
+        return 1;
     }
 
+    int return_val = loop(display, argparser.get<std::string>("--status"));
+
+    // Close the X server display
+    if (XCloseDisplay(display) < 0) {
+        std::cout << "Error: XCloseDisplay: Failed to close display\n";
+        return 1;
+    }
+
+    return return_val;
+}
+
+int loop(Display* display, const std::string& status) {
     while (true) {
-        std::string status = " ";
+        std::string formatted_status = format_status(status);
 
-        std::string time_string(100, '\0');
-        std::time_t now = std::time(nullptr);
-        time_string.resize(std::strftime(
-                time_string.data(),
-                time_string.size(),
-                "%Z %F %a %T",
-                std::localtime(&now)));
-        status += time_string + " ";
+        std::cout << formatted_status << '\n';
 
-        if (XStoreName(display, DefaultRootWindow(display), status.data())
+        if (XStoreName(
+                    display,
+                    DefaultRootWindow(display),
+                    formatted_status.data())
             < 0) {
-            return failure("Error: XStoreName: Allocation failed");
+            std::cout << "Error: XStoreName: Allocation failed\n";
+            return 1;
         }
         XFlush(display);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
+}
 
-    if (XCloseDisplay(display) < 0) {
-        return failure("Error: XCloseDisplay: Failed to close display");
+std::string format_status(const std::string& status) {
+    std::string formatted_status;
+
+    bool found_escape_sequence = false;
+
+    for (char chr : status) {
+        if (! found_escape_sequence) {
+            if (chr == '%') {
+                found_escape_sequence = true;
+            } else {
+                formatted_status.push_back(chr);
+            }
+            continue;
+        }
+
+        std::string insert;
+
+        switch (chr) {
+            case '%': insert = "%"; break;
+            case 'T': insert = status_bar::time(); break;
+            case 'D': insert = status_bar::disk_percent(); break;
+            case 'M': insert = status_bar::memory_percent(); break;
+            case 'C': insert = status_bar::cpu_percent(); break;
+            case 'b': insert = status_bar::battery_state(); break;
+            case 'B': insert = status_bar::battery_perc(); break;
+            case 'L': insert = status_bar::backlight_perc(); break;
+            case 'w': insert = status_bar::network_ssid(); break;
+            case 'W': insert = status_bar::wifi_perc(); break;
+            case 'P': insert = status_bar::bluetooth_devices(); break;
+            case 'v': insert = status_bar::volume_status(); break;
+            case 'V': insert = status_bar::volume_perc(); break;
+            case 'E': insert = status_bar::microphone_state(); break;
+            case 'A': insert = status_bar::camera_state(); break;
+            default: break;
+        }
+
+        formatted_status.append(insert);
+
+        found_escape_sequence = false;
     }
 
-    return 0;
+    return formatted_status;
 }
