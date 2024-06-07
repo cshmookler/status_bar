@@ -34,7 +34,7 @@ python build.py
 ## **TODO**
 
 - [X] date and time
-- [ ] disk space
+- [X] disk space
 - [ ] memory
 - [ ] cpu usage
 - [ ] cpu temperature
