@@ -34,10 +34,13 @@ python build.py
 ## **TODO**
 
 - [X] date and time
+- [X] uptime
 - [X] disk space
-- [ ] memory
+- [X] swap
+- [X] memory
 - [ ] cpu usage
 - [ ] cpu temperature
+- [ ] load averages (1 min, 5 min, 15 min)
 - [ ] battery percentage
 - [ ] battery time remaining
 - [ ] backlight percentage

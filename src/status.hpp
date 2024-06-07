@@ -14,6 +14,8 @@ namespace status_bar {
 
 [[nodiscard]] std::string time();
 
+[[nodiscard]] std::string uptime();
+
 [[nodiscard]] std::string disk_percent();
 
 [[nodiscard]] std::string memory_percent();

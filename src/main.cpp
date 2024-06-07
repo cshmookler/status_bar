@@ -33,10 +33,11 @@ int main(int argc, char** argv) {
             .nargs(1)
             .help("custom status with the following interpreted sequences:\n"
                   "    %%    a literal %\n"
-                  "    %T    current date and time\n"
+                  "    %t    current time\n"
+                  "    %u    uptime\n"
                   "    %D    disk usage\n"
-                  "    %M    memory usage\n"
                   "    %S    swap usage\n"
+                  "    %M    memory usage\n"
                   "    %C    CPU usage\n"
                   "    %b    battery state\n"
                   "    %B    battery percentage\n"
@@ -49,7 +50,7 @@ int main(int argc, char** argv) {
                   "    %E    microphone state\n"
                   "    %A    camera state\n   ")
             .default_value(" %V%%v | %v%%m | %P | %W%%w | %w | %L%%l | %B%%b | "
-                           "%b | %C%%c | %M%%m | %D%%d | %T");
+                           "%b | %C%%c | %M%%m | %S%%s | %D%%d | %T");
 
     // Parse arguments
     try {
@@ -118,10 +119,11 @@ std::string format_status(const std::string& status) {
 
         switch (chr) {
             case '%': insert = "%"; break;
-            case 'T': insert = status_bar::time(); break;
+            case 't': insert = status_bar::time(); break;
+            case 'u': insert = status_bar::uptime(); break;
             case 'D': insert = status_bar::disk_percent(); break;
-            case 'M': insert = status_bar::memory_percent(); break;
             case 'S': insert = status_bar::swap_percent(); break;
+            case 'M': insert = status_bar::memory_percent(); break;
             case 'C': insert = status_bar::cpu_percent(); break;
             case 'b': insert = status_bar::battery_state(); break;
             case 'B': insert = status_bar::battery_perc(); break;

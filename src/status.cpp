@@ -1,8 +1,11 @@
 // Standard includes
+#include <cstdint>
 #include <cstdio>
 #include <ctime>
 #include <filesystem>
-#include <string>
+
+// External includes
+#include <sys/sysinfo.h>
 
 // Local includes
 #include "status.hpp"
@@ -18,7 +21,7 @@ std::string sprintf(const char* format, Args... args) {
     std::string buffer(size, '\0');
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
     if (std::sprintf(buffer.data(), format, args...) < 0) {
-        return std::string{ "err" };
+        return "n/a";
     }
     return buffer;
 }
@@ -29,7 +32,7 @@ std::string time() {
     std::time_t epoch_time = std::time(nullptr);
     std::tm* calendar_time = std::localtime(&epoch_time);
 
-    // Format the current time in RFC 3339 format
+    // RFC 3339 format
     return internal::sprintf(
             "%i-%.2i-%.2i %.2i:%.2i:%.2i",
             calendar_time->tm_year + 1900, // NOLINT(readability-magic-numbers)
@@ -40,22 +43,60 @@ std::string time() {
             calendar_time->tm_sec);
 }
 
+[[nodiscard]] std::string uptime() {
+    struct sysinfo system_info {};
+    if (sysinfo(&system_info) != 0) {
+        return "n/a";
+    }
+
+    std::time_t epoch_uptime = system_info.uptime;
+    std::tm* calendar_uptime = std::gmtime(&epoch_uptime);
+
+    // non-standard format
+    return internal::sprintf(
+            "%i-%.3i %.2i:%.2i:%.2i",
+            calendar_uptime->tm_year - 70, // NOLINT(readability-magic-numbers)
+            calendar_uptime->tm_yday,
+            calendar_uptime->tm_hour,
+            calendar_uptime->tm_min,
+            calendar_uptime->tm_sec);
+}
+
 std::string disk_percent() {
     std::filesystem::space_info root_dir =
             std::filesystem::space(std::filesystem::current_path().root_path());
 
-    auto capacity = static_cast<double>(root_dir.capacity);
+    auto total = static_cast<double>(root_dir.capacity);
     auto used = static_cast<double>(root_dir.capacity - root_dir.available);
 
-    return internal::sprintf("%.0f", (used / capacity) * 1e2);
-}
-
-std::string memory_percent() {
-    return "";
+    return internal::sprintf("%.0f", (used / total) * 1e2);
 }
 
 std::string swap_percent() {
-    return "";
+    struct sysinfo system_info {};
+    if (sysinfo(&system_info) != 0) {
+        return "n/a";
+    }
+
+    auto total = static_cast<double>(system_info.totalswap);
+    auto used =
+            static_cast<double>(system_info.totalswap - system_info.freeswap);
+
+    return internal::sprintf("%.0f", (used / total) * 1e2);
+}
+
+std::string memory_percent() {
+    struct sysinfo system_info {};
+    if (sysinfo(&system_info) != 0) {
+        return "n/a";
+    }
+
+    auto total = static_cast<double>(system_info.totalram);
+    auto used = static_cast<double>(
+            system_info.totalram - system_info.freeram - system_info.bufferram
+            - system_info.sharedram);
+
+    return internal::sprintf("%.0f", (used / total) * 1e2);
 }
 
 std::string cpu_percent() {
