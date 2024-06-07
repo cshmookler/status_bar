@@ -18,6 +18,8 @@ namespace status_bar {
 
 [[nodiscard]] std::string memory_percent();
 
+[[nodiscard]] std::string swap_percent();
+
 [[nodiscard]] std::string cpu_percent();
 
 [[nodiscard]] std::string battery_state();

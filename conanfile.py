@@ -164,7 +164,9 @@ class status_bar(ConanFile):
                     continue
 
                 # Remove components from the list of declared components that do not exist within the resolved components list
-                for component_name, component_info in dep_info["components"].items():
+                for component_name, component_info in dep_info[
+                    "components"
+                ].items():
                     if (
                         component_name
                         not in resolved_dependencies[dep_name_and_version]
@@ -186,7 +188,9 @@ class status_bar(ConanFile):
                         }
                         continue
 
-                    declared_component_info = dep_info["components"][component_name]
+                    declared_component_info = dep_info["components"][
+                        component_name
+                    ]
                     if type(declared_component_info) == bool:
                         # Add a temporary version to an existing component
                         dep_info["components"][component_name] = {
@@ -194,7 +198,6 @@ class status_bar(ConanFile):
                             "enabled": declared_component_info,
                             "exclude_version_from_json": True,
                         }
-                        
 
         self._binaries.structured(
             raw_json=declared_binaries,

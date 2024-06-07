@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
                   "    %T    current date and time\n"
                   "    %D    disk usage\n"
                   "    %M    memory usage\n"
+                  "    %S    swap usage\n"
                   "    %C    CPU usage\n"
                   "    %b    battery state\n"
                   "    %B    battery percentage\n"
@@ -47,7 +48,7 @@ int main(int argc, char** argv) {
                   "    %V    volume percentage\n"
                   "    %E    microphone state\n"
                   "    %A    camera state\n   ")
-            .default_value("%V%%v | %v%%m | %P | %W%%w | %w | %L%%l | %B%%b | "
+            .default_value(" %V%%v | %v%%m | %P | %W%%w | %w | %L%%l | %B%%b | "
                            "%b | %C%%c | %M%%m | %D%%d | %T");
 
     // Parse arguments
@@ -120,6 +121,7 @@ std::string format_status(const std::string& status) {
             case 'T': insert = status_bar::time(); break;
             case 'D': insert = status_bar::disk_percent(); break;
             case 'M': insert = status_bar::memory_percent(); break;
+            case 'S': insert = status_bar::swap_percent(); break;
             case 'C': insert = status_bar::cpu_percent(); break;
             case 'b': insert = status_bar::battery_state(); break;
             case 'B': insert = status_bar::battery_perc(); break;

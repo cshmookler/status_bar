@@ -1,22 +1,37 @@
 // Standard includes
+#include <cstdio>
 #include <ctime>
-#include <format>
-
-// External includes
-// #include <sys/statvfs.h>
+#include <filesystem>
+#include <string>
 
 // Local includes
 #include "status.hpp"
 
 namespace status_bar {
 
+namespace internal {
+
+template<typename... Args>
+std::string sprintf(const char* format, Args... args) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
+    int size = std::snprintf(nullptr, 0, format, args...);
+    std::string buffer(size, '\0');
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
+    if (std::sprintf(buffer.data(), format, args...) < 0) {
+        return std::string{ "err" };
+    }
+    return buffer;
+}
+
+} // namespace internal
+
 std::string time() {
     std::time_t epoch_time = std::time(nullptr);
     std::tm* calendar_time = std::localtime(&epoch_time);
 
     // Format the current time in RFC 3339 format
-    return std::format(
-            "{}-{:0>2}-{:0>2} {:0>2}:{:0>2}:{:0>2}",
+    return internal::sprintf(
+            "%i-%.2i-%.2i %.2i:%.2i:%.2i",
             calendar_time->tm_year + 1900, // NOLINT(readability-magic-numbers)
             calendar_time->tm_mon + 1,
             calendar_time->tm_mday,
@@ -26,10 +41,20 @@ std::string time() {
 }
 
 std::string disk_percent() {
-    return "";
+    std::filesystem::space_info root_dir =
+            std::filesystem::space(std::filesystem::current_path().root_path());
+
+    auto capacity = static_cast<double>(root_dir.capacity);
+    auto used = static_cast<double>(root_dir.capacity - root_dir.available);
+
+    return internal::sprintf("%.0f", (used / capacity) * 1e2);
 }
 
 std::string memory_percent() {
+    return "";
+}
+
+std::string swap_percent() {
     return "";
 }
 
