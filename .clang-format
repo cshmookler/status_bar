@@ -72,7 +72,7 @@ AllowAllConstructorInitializersOnNextLine : true                #  9.x      # (b
 AllowAllParametersOfDeclarationOnNextLine : true                #  3.3      # (boolean)
 # AllowBreakBeforeNoexceptSpecifier : OnlyWithParen               # 18.x      # Never, OnlyWithParen, Always
 AllowShortBlocksOnASingleLine : Empty                           #  3.5      # Never, Empty, Always
-AllowShortCaseLabelsOnASingleLine : true                        #  3.6      # (boolean)
+AllowShortCaseLabelsOnASingleLine : false                       #  3.6      # (boolean)
 AllowShortEnumsOnASingleLine : false                            # 11.x      # (boolean)
 AllowShortFunctionsOnASingleLine : Inline                       #  3.5      # None, InlineOnly, Empty, Inline, All
 AllowShortIfStatementsOnASingleLine : Never                     #  3.3      # Never, WithoutElse, OnlyFirstIf, AllIfsAndElse

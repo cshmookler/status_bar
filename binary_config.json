@@ -77,6 +77,10 @@
             [
                 "src",
                 "status.cpp"
+            ],
+            [
+                "src",
+                "cpu.cpp"
             ]
         ],
         "main": [

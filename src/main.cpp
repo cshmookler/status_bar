@@ -1,6 +1,7 @@
 // Standard includes
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -10,12 +11,17 @@
 #include <sys/inotify.h>
 
 // Local includes
+#include "cpu.hpp"
 #include "status.hpp"
 #include "version.hpp"
 
-int loop(Display* display, const std::string& status);
+int loop(
+        Display* display,
+        std::unique_ptr<status_bar::cpu>& cpu_stat,
+        const std::string& status);
 
-[[nodiscard]] std::string format_status(const std::string& status);
+[[nodiscard]] std::string format_status(
+        std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status);
 
 int main(int argc, char** argv) {
     // Setup the argument parser
@@ -35,22 +41,22 @@ int main(int argc, char** argv) {
                   "    %%    a literal %\n"
                   "    %t    current time\n"
                   "    %u    uptime\n"
-                  "    %D    disk usage\n"
-                  "    %S    swap usage\n"
-                  "    %M    memory usage\n"
-                  "    %C    CPU usage\n"
+                  "    %d    disk usage\n"
+                  "    %s    swap usage\n"
+                  "    %m    memory usage\n"
+                  "    %c    CPU usage\n"
                   "    %b    battery state\n"
                   "    %B    battery percentage\n"
-                  "    %L    backlight percentage\n"
+                  "    %l    backlight percentage\n"
                   "    %w    network SSID\n"
                   "    %W    WIFI percentage\n"
-                  "    %P    bluetooth devices\n"
+                  "    %p    bluetooth devices\n"
                   "    %v    volume mute\n"
                   "    %V    volume percentage\n"
-                  "    %E    microphone state\n"
-                  "    %A    camera state\n   ")
-            .default_value(" %V%%v | %v%%m | %P | %W%%w | %w | %L%%l | %B%%b | "
-                           "%b | %C%%c | %M%%m | %S%%s | %D%%d | %T");
+                  "    %e    microphone state\n"
+                  "    %a    camera state\n   ")
+            .default_value(" %V%%v | %v%%m | %p | %W%%w | %w | %l%%l | %B%%b | "
+                           "%b | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
 
     // Parse arguments
     try {
@@ -65,33 +71,37 @@ int main(int argc, char** argv) {
     // Open the X server display
     Display* display = XOpenDisplay(nullptr);
     if (display == nullptr) {
-        std::cout << "Error: XOpenDisplay: Failed to open display\n";
+        std::cerr << "Error: XOpenDisplay: Failed to open display\n";
         return 1;
     }
 
-    int return_val = loop(display, argparser.get<std::string>("--status"));
+    std::unique_ptr<status_bar::cpu> cpu_stat;
+
+    int return_val =
+            loop(display, cpu_stat, argparser.get<std::string>("--status"));
 
     // Close the X server display
     if (XCloseDisplay(display) < 0) {
-        std::cout << "Error: XCloseDisplay: Failed to close display\n";
+        std::cerr << "Error: XCloseDisplay: Failed to close display\n";
         return 1;
     }
 
     return return_val;
 }
 
-int loop(Display* display, const std::string& status) {
+int loop(
+        Display* display,
+        std::unique_ptr<status_bar::cpu>& cpu_stat,
+        const std::string& status) {
     while (true) {
-        std::string formatted_status = format_status(status);
-
-        std::cout << formatted_status << '\n';
+        std::string formatted_status = format_status(cpu_stat, status);
 
         if (XStoreName(
                     display,
                     DefaultRootWindow(display),
                     formatted_status.data())
             < 0) {
-            std::cout << "Error: XStoreName: Allocation failed\n";
+            std::cerr << "Error: XStoreName: Allocation failed\n";
             return 1;
         }
         XFlush(display);
@@ -100,7 +110,8 @@ int loop(Display* display, const std::string& status) {
     }
 }
 
-std::string format_status(const std::string& status) {
+std::string format_status(
+        std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status) {
     std::string formatted_status;
 
     bool found_escape_sequence = false;
@@ -118,24 +129,59 @@ std::string format_status(const std::string& status) {
         std::string insert;
 
         switch (chr) {
-            case '%': insert = "%"; break;
-            case 't': insert = status_bar::time(); break;
-            case 'u': insert = status_bar::uptime(); break;
-            case 'D': insert = status_bar::disk_percent(); break;
-            case 'S': insert = status_bar::swap_percent(); break;
-            case 'M': insert = status_bar::memory_percent(); break;
-            case 'C': insert = status_bar::cpu_percent(); break;
-            case 'b': insert = status_bar::battery_state(); break;
-            case 'B': insert = status_bar::battery_perc(); break;
-            case 'L': insert = status_bar::backlight_perc(); break;
-            case 'w': insert = status_bar::network_ssid(); break;
-            case 'W': insert = status_bar::wifi_perc(); break;
-            case 'P': insert = status_bar::bluetooth_devices(); break;
-            case 'v': insert = status_bar::volume_status(); break;
-            case 'V': insert = status_bar::volume_perc(); break;
-            case 'E': insert = status_bar::microphone_state(); break;
-            case 'A': insert = status_bar::camera_state(); break;
-            default: break;
+            case '%':
+                insert = "%";
+                break;
+            case 't':
+                insert = status_bar::time();
+                break;
+            case 'u':
+                insert = status_bar::uptime();
+                break;
+            case 'd':
+                insert = status_bar::disk_percent();
+                break;
+            case 's':
+                insert = status_bar::swap_percent();
+                break;
+            case 'm':
+                insert = status_bar::memory_percent();
+                break;
+            case 'c':
+                insert = status_bar::cpu_percent(cpu_stat);
+                break;
+            case 'b':
+                insert = status_bar::battery_state();
+                break;
+            case 'B':
+                insert = status_bar::battery_perc();
+                break;
+            case 'l':
+                insert = status_bar::backlight_perc();
+                break;
+            case 'w':
+                insert = status_bar::network_ssid();
+                break;
+            case 'W':
+                insert = status_bar::wifi_perc();
+                break;
+            case 'p':
+                insert = status_bar::bluetooth_devices();
+                break;
+            case 'v':
+                insert = status_bar::volume_status();
+                break;
+            case 'V':
+                insert = status_bar::volume_perc();
+                break;
+            case 'e':
+                insert = status_bar::microphone_state();
+                break;
+            case 'a':
+                insert = status_bar::camera_state();
+                break;
+            default:
+                break;
         }
 
         formatted_status.append(insert);

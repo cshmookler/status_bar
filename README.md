@@ -38,7 +38,7 @@ python build.py
 - [X] disk space
 - [X] swap
 - [X] memory
-- [ ] cpu usage
+- [X] cpu usage
 - [ ] cpu temperature
 - [ ] load averages (1 min, 5 min, 15 min)
 - [ ] battery percentage

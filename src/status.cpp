@@ -1,18 +1,20 @@
 // Standard includes
-#include <cstdint>
 #include <cstdio>
 #include <ctime>
 #include <filesystem>
+#include <iostream>
+#include <memory>
+#include <string>
 
 // External includes
 #include <sys/sysinfo.h>
 
 // Local includes
+#include "constants.hpp"
+#include "cpu.hpp"
 #include "status.hpp"
 
 namespace status_bar {
-
-namespace internal {
 
 template<typename... Args>
 std::string sprintf(const char* format, Args... args) {
@@ -21,19 +23,17 @@ std::string sprintf(const char* format, Args... args) {
     std::string buffer(size, '\0');
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
     if (std::sprintf(buffer.data(), format, args...) < 0) {
-        return "n/a";
+        return error_str;
     }
     return buffer;
 }
-
-} // namespace internal
 
 std::string time() {
     std::time_t epoch_time = std::time(nullptr);
     std::tm* calendar_time = std::localtime(&epoch_time);
 
     // RFC 3339 format
-    return internal::sprintf(
+    return sprintf(
             "%i-%.2i-%.2i %.2i:%.2i:%.2i",
             calendar_time->tm_year + 1900, // NOLINT(readability-magic-numbers)
             calendar_time->tm_mon + 1,
@@ -46,14 +46,14 @@ std::string time() {
 [[nodiscard]] std::string uptime() {
     struct sysinfo system_info {};
     if (sysinfo(&system_info) != 0) {
-        return "n/a";
+        return error_str;
     }
 
     std::time_t epoch_uptime = system_info.uptime;
     std::tm* calendar_uptime = std::gmtime(&epoch_uptime);
 
     // non-standard format
-    return internal::sprintf(
+    return sprintf(
             "%i-%.3i %.2i:%.2i:%.2i",
             calendar_uptime->tm_year - 70, // NOLINT(readability-magic-numbers)
             calendar_uptime->tm_yday,
@@ -69,26 +69,26 @@ std::string disk_percent() {
     auto total = static_cast<double>(root_dir.capacity);
     auto used = static_cast<double>(root_dir.capacity - root_dir.available);
 
-    return internal::sprintf("%.0f", (used / total) * 1e2);
+    return sprintf("%.0f", (used / total) * 1e2);
 }
 
 std::string swap_percent() {
     struct sysinfo system_info {};
     if (sysinfo(&system_info) != 0) {
-        return "n/a";
+        return error_str;
     }
 
     auto total = static_cast<double>(system_info.totalswap);
     auto used =
             static_cast<double>(system_info.totalswap - system_info.freeswap);
 
-    return internal::sprintf("%.0f", (used / total) * 1e2);
+    return sprintf("%.0f", (used / total) * 1e2);
 }
 
 std::string memory_percent() {
     struct sysinfo system_info {};
     if (sysinfo(&system_info) != 0) {
-        return "n/a";
+        return error_str;
     }
 
     auto total = static_cast<double>(system_info.totalram);
@@ -96,11 +96,37 @@ std::string memory_percent() {
             system_info.totalram - system_info.freeram - system_info.bufferram
             - system_info.sharedram);
 
-    return internal::sprintf("%.0f", (used / total) * 1e2);
+    return sprintf("%.0f", (used / total) * 1e2);
 }
 
-std::string cpu_percent() {
-    return "";
+std::string cpu_percent(std::unique_ptr<cpu>& cpu_stat) {
+    if (cpu_stat == nullptr) {
+        cpu_stat = std::make_unique<cpu>();
+        return standby_str;
+    }
+
+    try {
+        std::vector<cpu::index> idle_components{ cpu::index::idle };
+
+        auto prev_total = cpu_stat->get_total();
+        auto prev_idle = cpu_stat->get_total(idle_components);
+        auto prev_work = prev_total - prev_idle;
+
+        cpu_stat = std::make_unique<cpu>();
+
+        auto new_total = cpu_stat->get_total();
+        auto new_idle = cpu_stat->get_total(idle_components);
+        auto new_work = new_total - new_idle;
+
+        auto total_diff = static_cast<double>(new_total - prev_total);
+        auto work_diff = static_cast<double>(new_work - prev_work);
+
+        return sprintf("%.0f", (work_diff / total_diff) * 1e2);
+    }
+    catch (const invalid_proc_stat& err) {
+        std::cerr << err.what() << '\n';
+        return err.status();
+    }
 }
 
 std::string battery_state() {
@@ -142,45 +168,5 @@ std::string microphone_state() {
 std::string camera_state() {
     return "";
 }
-
-// std::string time() {
-//     std::string str(100, '\0'); // NOLINT(readability-magic-numbers)
-//     std::time_t now = std::time(nullptr);
-//     str.resize(std::strftime(
-//             str.data(),
-//             str.size(),
-//             "%Z %F %a %T",
-//             std::localtime(&now))); // NOLINT(concurrency-mt-unsafe)
-//     return str;
-// }
-
-// std::string disk_percent() {
-//     struct statvfs root_fs {};
-//     statvfs("/", &root_fs);
-//     uint disk_percent =
-//             // NOLINTNEXTLINE(readability-magic-numbers)
-//             100UL - ((root_fs.f_bavail * 100UL) / root_fs.f_blocks);
-//     return std::to_string(disk_percent);
-// }
-
-// std::string memory_percent() {
-//     uintmax_t total = 0;
-//     uintmax_t available = 0;
-
-//     // TODO: Write general function for extracting data from commands and
-//     files
-
-//     int identifiers_found =
-//             pscanf("/proc/meminfo",
-//                    "MemTotal: %ju kB\n"
-//                    "MemAvailable: %ju kB\n",
-//                    &total,
-//                    &available);
-//     if (identifiers_found != 2) // NOLINT(readability-magic-numbers)
-//         return "n/a";
-
-//     int memory_percent = (available * 100UL) / total;
-//     return std::to_string(memory_percent);
-// }
 
 } // namespace status_bar
