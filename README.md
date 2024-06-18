@@ -39,7 +39,7 @@ python build.py
 - [X] swap
 - [X] memory
 - [X] cpu usage
-- [ ] cpu temperature
+- [X] cpu temperature
 - [ ] load averages (1 min, 5 min, 15 min)
 - [ ] battery percentage
 - [ ] battery time remaining

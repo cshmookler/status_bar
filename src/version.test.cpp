@@ -6,6 +6,5 @@
 
 TEST(version_test, runtime_version_matches_compiletime_version) {
     ASSERT_STREQ(
-            status_bar::get_runtime_version(),
-            status_bar::compiletime_version);
+      status_bar::get_runtime_version(), status_bar::compiletime_version);
 }

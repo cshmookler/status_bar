@@ -1,9 +1,10 @@
 #pragma once
 
 /**
- * @file cpu.hpp
+ * @file proc_stat.hpp
  * @author Caden Shmookler (cshmookler@gmail.com)
- * @brief Structures for collecting information related to the CPU.
+ * @brief Structures for collecting information from
+ * /proc/stat.
  * @date 2024-06-08
  */
 
@@ -15,17 +16,17 @@
 
 namespace status_bar {
 
-const char* const proc_stat_path = "/proc/stat";
-const char* const proc_stat_cpu_field = "cpu";
-
 class invalid_proc_stat : public std::runtime_error {
     const char* status_;
 
   public:
     inline invalid_proc_stat(const char* status, const std::string& error)
-    : std::runtime_error(error), status_(status) {}
+    : std::runtime_error(error), status_(status) {
+    }
 
-    [[nodiscard]] inline const char* status() const { return this->status_; }
+    [[nodiscard]] inline const char* status() const {
+        return this->status_;
+    }
 };
 
 class cpu {

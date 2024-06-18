@@ -11,58 +11,57 @@
 #include <sys/inotify.h>
 
 // Local includes
-#include "cpu.hpp"
+#include "proc_stat.hpp"
 #include "status.hpp"
 #include "version.hpp"
 
-int loop(
-        Display* display,
-        std::unique_ptr<status_bar::cpu>& cpu_stat,
-        const std::string& status);
+int loop(Display* display,
+  std::unique_ptr<status_bar::cpu>& cpu_stat,
+  const std::string& status);
 
 [[nodiscard]] std::string format_status(
-        std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status);
+  std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status);
 
 int main(int argc, char** argv) {
     // Setup the argument parser
     argparse::ArgumentParser argparser{ "status_bar",
-                                        status_bar::get_runtime_version() };
+        status_bar::get_runtime_version() };
 
     argparser.add_argument("-p", "--path")
-            .metavar("PATH")
-            .nargs(1)
-            .help("the path to the notification file\n   ")
-            .default_value("/tmp/status_bar");
+      .metavar("PATH")
+      .nargs(1)
+      .help("the path to the notification file\n   ")
+      .default_value("/tmp/status_bar");
 
     argparser.add_argument("-s", "--status")
-            .metavar("STATUS")
-            .nargs(1)
-            .help("custom status with the following interpreted sequences:\n"
-                  "    %%    a literal %\n"
-                  "    %t    current time\n"
-                  "    %u    uptime\n"
-                  "    %d    disk usage\n"
-                  "    %s    swap usage\n"
-                  "    %m    memory usage\n"
-                  "    %c    CPU usage\n"
-                  "    %b    battery state\n"
-                  "    %B    battery percentage\n"
-                  "    %l    backlight percentage\n"
-                  "    %w    network SSID\n"
-                  "    %W    WIFI percentage\n"
-                  "    %p    bluetooth devices\n"
-                  "    %v    volume mute\n"
-                  "    %V    volume percentage\n"
-                  "    %e    microphone state\n"
-                  "    %a    camera state\n   ")
-            .default_value(" %V%%v | %v%%m | %p | %W%%w | %w | %l%%l | %B%%b | "
-                           "%b | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
+      .metavar("STATUS")
+      .nargs(1)
+      .help("custom status with the following interpreted sequences:\n"
+            "    %%    a literal %\n"
+            "    %t    current time\n"
+            "    %u    uptime\n"
+            "    %d    disk usage\n"
+            "    %s    swap usage\n"
+            "    %m    memory usage\n"
+            "    %c    CPU usage\n"
+            "    %C    CPU temperature\n"
+            "    %b    battery state\n"
+            "    %B    battery percentage\n"
+            "    %l    backlight percentage\n"
+            "    %w    network SSID\n"
+            "    %W    WIFI percentage\n"
+            "    %p    bluetooth devices\n"
+            "    %v    volume mute\n"
+            "    %V    volume percentage\n"
+            "    %e    microphone state\n"
+            "    %a    camera state\n   ")
+      .default_value(" %V%%v | %v%%m | %p | %W%%w | %w | %l%%l | %B%%b | "
+                     "%b | %C | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
 
     // Parse arguments
     try {
         argparser.parse_args(argc, argv);
-    }
-    catch (const std::exception& err) {
+    } catch (const std::exception& err) {
         std::cerr << err.what() << "\n\n";
         std::cerr << argparser;
         std::exit(1);
@@ -78,7 +77,7 @@ int main(int argc, char** argv) {
     std::unique_ptr<status_bar::cpu> cpu_stat;
 
     int return_val =
-            loop(display, cpu_stat, argparser.get<std::string>("--status"));
+      loop(display, cpu_stat, argparser.get<std::string>("--status"));
 
     // Close the X server display
     if (XCloseDisplay(display) < 0) {
@@ -89,18 +88,15 @@ int main(int argc, char** argv) {
     return return_val;
 }
 
-int loop(
-        Display* display,
-        std::unique_ptr<status_bar::cpu>& cpu_stat,
-        const std::string& status) {
+int loop(Display* display,
+  std::unique_ptr<status_bar::cpu>& cpu_stat,
+  const std::string& status) {
     while (true) {
         std::string formatted_status = format_status(cpu_stat, status);
 
         if (XStoreName(
-                    display,
-                    DefaultRootWindow(display),
-                    formatted_status.data())
-            < 0) {
+              display, DefaultRootWindow(display), formatted_status.data())
+          < 0) {
             std::cerr << "Error: XStoreName: Allocation failed\n";
             return 1;
         }
@@ -111,7 +107,7 @@ int loop(
 }
 
 std::string format_status(
-        std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status) {
+  std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status) {
     std::string formatted_status;
 
     bool found_escape_sequence = false;
@@ -149,6 +145,9 @@ std::string format_status(
                 break;
             case 'c':
                 insert = status_bar::cpu_percent(cpu_stat);
+                break;
+            case 'C':
+                insert = status_bar::cpu_temp();
                 break;
             case 'b':
                 insert = status_bar::battery_state();

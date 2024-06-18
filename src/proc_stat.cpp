@@ -5,10 +5,13 @@
 #include <vector>
 
 // Local includes
-#include "cpu.hpp"
+#include "proc_stat.hpp"
 #include "constants.hpp"
 
 namespace status_bar {
+
+const char* const proc_stat_path = "/proc/stat";
+const char* const proc_stat_cpu_field = "cpu";
 
 cpu::cpu() {
     std::ifstream proc_stat{ proc_stat_path };
@@ -41,26 +44,24 @@ cpu::cpu() {
         }
 
         if (raw_entries.size() != index_count) {
-            throw invalid_proc_stat(
-                    error_str,
-                    "Expected " + std::to_string(raw_entries.size())
-                            + " entries following field '" + proc_stat_cpu_field
-                            + "' in " + proc_stat_path + " but found "
-                            + std::to_string(index_count)
-                            + " entries instead.");
+            throw invalid_proc_stat(error_str,
+              "Expected " + std::to_string(index_count)
+                + " entries following field '" + proc_stat_cpu_field + "' in "
+                + proc_stat_path + " but found "
+                + std::to_string(raw_entries.size()) + " entries instead.");
         }
 
         this->entries_ = std::vector<size_t>{};
         for (const std::string& entry : raw_entries) {
             this->entries_.push_back(std::stoull(entry));
         }
+
         return;
     }
 
-    throw invalid_proc_stat(
-            error_str,
-            "Failed to find field " + std::string(proc_stat_cpu_field) + "' in "
-                    + proc_stat_path + ".");
+    throw invalid_proc_stat(error_str,
+      "Failed to find field '" + std::string(proc_stat_cpu_field) + "' in "
+        + proc_stat_path + ".");
 }
 
 size_t cpu::get_total() const {

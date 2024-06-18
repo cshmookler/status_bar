@@ -12,7 +12,7 @@
 #include <string>
 
 // Local includes
-#include "cpu.hpp"
+#include "proc_stat.hpp"
 
 namespace status_bar {
 
@@ -27,6 +27,8 @@ namespace status_bar {
 [[nodiscard]] std::string swap_percent();
 
 [[nodiscard]] std::string cpu_percent(std::unique_ptr<cpu>& cpu_stat);
+
+[[nodiscard]] std::string cpu_temp();
 
 [[nodiscard]] std::string battery_state();
 

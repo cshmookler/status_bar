@@ -80,7 +80,7 @@
             ],
             [
                 "src",
-                "cpu.cpp"
+                "proc_stat.cpp"
             ]
         ],
         "main": [
@@ -93,7 +93,7 @@
         "dependencies": {
             "gtest/1.14.0": {
                 "enabled": true,
-                "dynamic": null,
+                "dynamic": true,
                 "components": {
                     "gtest": true,
                     "gtest_main": true,
