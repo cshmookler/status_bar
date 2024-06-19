@@ -28,17 +28,23 @@ namespace status_bar {
 
 [[nodiscard]] std::string cpu_percent(std::unique_ptr<cpu>& cpu_stat);
 
-[[nodiscard]] std::string cpu_temp();
+[[nodiscard]] std::string cpu_temperature();
+
+[[nodiscard]] std::string one_minute_load_average();
+
+[[nodiscard]] std::string five_minute_load_average();
+
+[[nodiscard]] std::string fifteen_minute_load_average();
 
 [[nodiscard]] std::string battery_state();
 
-[[nodiscard]] std::string battery_perc();
+[[nodiscard]] std::string battery_percent();
 
-[[nodiscard]] std::string backlight_perc();
+[[nodiscard]] std::string backlight_percent();
 
 [[nodiscard]] std::string network_ssid();
 
-[[nodiscard]] std::string wifi_perc();
+[[nodiscard]] std::string wifi_percent();
 
 [[nodiscard]] std::string bluetooth_devices();
 

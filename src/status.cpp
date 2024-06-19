@@ -1,5 +1,7 @@
 // Standard includes
+#include <array>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -160,7 +162,7 @@ std::string cpu_percent(std::unique_ptr<cpu>& cpu_stat) {
     }
 }
 
-std::string cpu_temp() {
+std::string cpu_temperature() {
     const char* const sys_class_hwmon_path = "/sys/class/hwmon/";
     const char* const sys_class_hwmon_core_temp_name_filename = "name";
     const char* const sys_class_hwmon_core_temp_name = "coretemp";
@@ -234,7 +236,8 @@ std::string cpu_temp() {
                     continue;
                 }
 
-                return sprintf("%.0f", std::stoull(sensor_input) / 1e3);
+                return sprintf(
+                  "%.0f", static_cast<float>(std::stoull(sensor_input)) / 1e3F);
             }
         }
     }
@@ -242,15 +245,45 @@ std::string cpu_temp() {
     return status_bar::error_str;
 }
 
+std::string one_minute_load_average() {
+    std::array<double, 1> load_averages{};
+
+    if (getloadavg(load_averages.data(), load_averages.size()) == -1) {
+        return status_bar::error_str;
+    }
+
+    return sprintf("%.0f", load_averages.back() * 1e2);
+}
+
+std::string five_minute_load_average() {
+    std::array<double, 2> load_averages{};
+
+    if (getloadavg(load_averages.data(), load_averages.size()) == -1) {
+        return status_bar::error_str;
+    }
+
+    return sprintf("%.0f", load_averages.back() * 1e2);
+}
+
+std::string fifteen_minute_load_average() {
+    std::array<double, 3> load_averages{};
+
+    if (getloadavg(load_averages.data(), load_averages.size()) == -1) {
+        return status_bar::error_str;
+    }
+
+    return sprintf("%.0f", load_averages.back() * 1e2);
+}
+
 std::string battery_state() {
     return "";
 }
 
-std::string battery_perc() {
+std::string battery_percent() {
     return "";
 }
 
-std::string backlight_perc() {
+std::string backlight_percent() {
     return "";
 }
 
@@ -258,7 +291,7 @@ std::string network_ssid() {
     return "";
 }
 
-std::string wifi_perc() {
+std::string wifi_percent() {
     return "";
 }
 

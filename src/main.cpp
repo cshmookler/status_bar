@@ -45,6 +45,9 @@ int main(int argc, char** argv) {
             "    %m    memory usage\n"
             "    %c    CPU usage\n"
             "    %C    CPU temperature\n"
+            "    %1    1 minute load average\n"
+            "    %5    5 minute load average\n"
+            "    %f    15 minute load average\n"
             "    %b    battery state\n"
             "    %B    battery percentage\n"
             "    %l    backlight percentage\n"
@@ -56,7 +59,8 @@ int main(int argc, char** argv) {
             "    %e    microphone state\n"
             "    %a    camera state\n   ")
       .default_value(" %V%%v | %v%%m | %p | %W%%w | %w | %l%%l | %B%%b | "
-                     "%b | %C | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
+                     "%b | %1%%i %5%%v %f%%xv | %C | %c%%c | %m%%m | %s%%s "
+                     "| %d%%d | %t ");
 
     // Parse arguments
     try {
@@ -147,22 +151,31 @@ std::string format_status(
                 insert = status_bar::cpu_percent(cpu_stat);
                 break;
             case 'C':
-                insert = status_bar::cpu_temp();
+                insert = status_bar::cpu_temperature();
+                break;
+            case '1':
+                insert = status_bar::one_minute_load_average();
+                break;
+            case '5':
+                insert = status_bar::five_minute_load_average();
+                break;
+            case 'f':
+                insert = status_bar::fifteen_minute_load_average();
                 break;
             case 'b':
                 insert = status_bar::battery_state();
                 break;
             case 'B':
-                insert = status_bar::battery_perc();
+                insert = status_bar::battery_percent();
                 break;
             case 'l':
-                insert = status_bar::backlight_perc();
+                insert = status_bar::backlight_percent();
                 break;
             case 'w':
                 insert = status_bar::network_ssid();
                 break;
             case 'W':
-                insert = status_bar::wifi_perc();
+                insert = status_bar::wifi_percent();
                 break;
             case 'p':
                 insert = status_bar::bluetooth_devices();

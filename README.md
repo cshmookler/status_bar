@@ -40,7 +40,7 @@ python build.py
 - [X] memory
 - [X] cpu usage
 - [X] cpu temperature
-- [ ] load averages (1 min, 5 min, 15 min)
+- [X] load averages (1 min, 5 min, 15 min)
 - [ ] battery percentage
 - [ ] battery time remaining
 - [ ] backlight percentage
