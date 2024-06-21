@@ -65,6 +65,15 @@ template<typename... Args>
     return found_postfix;
 }
 
+[[nodiscard]] std::string get_first_line(const std::filesystem::path& path) {
+    std::ifstream file{ path };
+    std::string first_line;
+    if (! std::getline(file, first_line).good()) {
+        return status_bar::null_str;
+    }
+    return first_line;
+}
+
 std::string time() {
     std::time_t epoch_time = std::time(nullptr);
     std::tm* calendar_time = std::localtime(&epoch_time);
@@ -177,17 +186,10 @@ std::string cpu_temperature() {
             continue;
         }
 
-        {
-            std::ifstream hwmon_name_file{ hwmon_device.path()
-                / sys_class_hwmon_core_temp_name_filename };
-            std::string hwmon_name;
-            if (! std::getline(hwmon_name_file, hwmon_name).good()) {
-                continue;
-            }
-
-            if (hwmon_name != sys_class_hwmon_core_temp_name) {
-                continue;
-            }
+        std::string hwmon_name = get_first_line(
+          hwmon_device.path() / sys_class_hwmon_core_temp_name_filename);
+        if (hwmon_name != sys_class_hwmon_core_temp_name) {
+            continue;
         }
 
         for (const std::filesystem::directory_entry& hwmon_device_file :
@@ -217,28 +219,18 @@ std::string cpu_temperature() {
             std::string sensor_input_path = hwmon_device.path()
               / (sensor_prefix + sys_class_hwmon_core_temp_input_postfix);
 
-            {
-                std::ifstream sensor_label_file{ sensor_label_path };
-                std::string sensor_label;
-                if (! std::getline(sensor_label_file, sensor_label).good()) {
-                    continue;
-                }
-
-                if (sensor_label != sys_class_hwmon_core_temp_label) {
-                    continue;
-                }
+            std::string sensor_label = get_first_line(sensor_label_path);
+            if (sensor_label != sys_class_hwmon_core_temp_label) {
+                continue;
             }
 
-            {
-                std::ifstream sensor_input_file{ sensor_input_path };
-                std::string sensor_input;
-                if (! std::getline(sensor_input_file, sensor_input)) {
-                    continue;
-                }
-
-                return sprintf(
-                  "%.0f", static_cast<float>(std::stoull(sensor_input)) / 1e3F);
+            std::string sensor_input = get_first_line(sensor_input_path);
+            if (sensor_input == status_bar::null_str) {
+                continue;
             }
+
+            return sprintf(
+              "%.0f", static_cast<float>(std::stoull(sensor_input)) / 1e3F);
         }
     }
 
@@ -252,7 +244,7 @@ std::string one_minute_load_average() {
         return status_bar::error_str;
     }
 
-    return sprintf("%.0f", load_averages.back() * 1e2);
+    return sprintf("%.1f", load_averages.back());
 }
 
 std::string five_minute_load_average() {
@@ -262,7 +254,7 @@ std::string five_minute_load_average() {
         return status_bar::error_str;
     }
 
-    return sprintf("%.0f", load_averages.back() * 1e2);
+    return sprintf("%.1f", load_averages.back());
 }
 
 std::string fifteen_minute_load_average() {
@@ -272,47 +264,85 @@ std::string fifteen_minute_load_average() {
         return status_bar::error_str;
     }
 
-    return sprintf("%.0f", load_averages.back() * 1e2);
+    return sprintf("%.1f", load_averages.back());
 }
 
 std::string battery_state() {
-    return "";
+    const char* const devices_path = "/sys/class/power_supply/";
+    const char* const device_type_filename = "type";
+    const char* const device_type_battery = "Battery";
+    const char* const device_status_filename = "status";
+    const char* const device_status_charging = "Charging";
+    const char* const device_status_discharging = "Discharging";
+    const char* const device_status_not_charging = "Not Charging";
+    const char* const device_status_full = "Full";
+
+    for (const std::filesystem::directory_entry& device :
+      std::filesystem::directory_iterator(devices_path)) {
+        if (! device.is_directory()) {
+            continue;
+        }
+
+        std::string type = get_first_line(device.path() / device_type_filename);
+        if (type != device_type_battery) {
+            continue;
+        }
+
+        std::string status =
+          get_first_line(device.path() / device_status_filename);
+        if (status == device_status_full) {
+            return "🟢";
+        }
+        if (status == device_status_charging) {
+            return "🔵";
+        }
+        if (status == device_status_discharging) {
+            return "🟡";
+        }
+        if (status == device_status_not_charging) {
+            return "🔴";
+        }
+
+        return status_bar::error_str;
+    }
+
+    return status_bar::error_str;
 }
 
 std::string battery_percent() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string backlight_percent() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string network_ssid() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string wifi_percent() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string bluetooth_devices() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string volume_status() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string volume_perc() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string microphone_state() {
-    return "";
+    return status_bar::null_str;
 }
 
 std::string camera_state() {
-    return "";
+    return status_bar::null_str;
 }
 
 } // namespace status_bar

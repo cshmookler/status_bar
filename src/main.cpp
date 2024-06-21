@@ -58,9 +58,8 @@ int main(int argc, char** argv) {
             "    %V    volume percentage\n"
             "    %e    microphone state\n"
             "    %a    camera state\n   ")
-      .default_value(" %V%%v | %v%%m | %p | %W%%w | %w | %l%%l | %B%%b | "
-                     "%b | %1%%i %5%%v %f%%xv | %C | %c%%c | %m%%m | %s%%s "
-                     "| %d%%d | %t ");
+      .default_value(" %V%%v | %v%%m | %p | %w %W%%w | %l%%l | %b %B%%b | %1 "
+                     "%5 %f | %C | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
 
     // Parse arguments
     try {

@@ -9,6 +9,7 @@
 
 namespace status_bar {
 
+const char* const null_str = "";
 const char* const error_str = "n/a";
 const char* const standby_str = "--";
 
