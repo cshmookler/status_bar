@@ -77,10 +77,6 @@
             [
                 "src",
                 "status.cpp"
-            ],
-            [
-                "src",
-                "proc_stat.cpp"
             ]
         ],
         "main": [

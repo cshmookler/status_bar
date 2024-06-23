@@ -42,8 +42,8 @@ python build.py
 - [X] cpu temperature
 - [X] load averages (1 min, 5 min, 15 min)
 - [X] battery status
-- [ ] battery percentage
-- [ ] battery time remaining
+- [X] battery percentage
+- [X] battery time remaining
 - [ ] backlight percentage
 - [ ] network SSID
 - [ ] wifi percentage

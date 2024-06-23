@@ -11,16 +11,19 @@
 #include <sys/inotify.h>
 
 // Local includes
-#include "proc_stat.hpp"
+#include "constants.hpp"
 #include "status.hpp"
 #include "version.hpp"
 
 int loop(Display* display,
-  std::unique_ptr<status_bar::cpu>& cpu_stat,
+  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
+  status_bar::battery_state& battery_state_info,
   const std::string& status);
 
 [[nodiscard]] std::string format_status(
-  std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status);
+  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
+  status_bar::battery_state& battery_state_info,
+  const std::string& status);
 
 int main(int argc, char** argv) {
     // Setup the argument parser
@@ -50,6 +53,7 @@ int main(int argc, char** argv) {
             "    %f    15 minute load average\n"
             "    %b    battery state\n"
             "    %B    battery percentage\n"
+            "    %T    battery time remaining\n"
             "    %l    backlight percentage\n"
             "    %w    network SSID\n"
             "    %W    WIFI percentage\n"
@@ -58,8 +62,9 @@ int main(int argc, char** argv) {
             "    %V    volume percentage\n"
             "    %e    microphone state\n"
             "    %a    camera state\n   ")
-      .default_value(" %V%%v | %v%%m | %p | %w %W%%w | %l%%l | %b %B%%b | %1 "
-                     "%5 %f | %C | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
+      .default_value(
+        " %V%%v | %v%%m | %p | %w %W%%w | %l%%l | %b %B%%b %T | %1 "
+        "%5 %f | %CC | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
 
     // Parse arguments
     try {
@@ -77,10 +82,13 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::unique_ptr<status_bar::cpu> cpu_stat;
+    std::unique_ptr<status_bar::cpu_state> cpu_state_info{};
+    status_bar::battery_state battery_state_info{};
 
-    int return_val =
-      loop(display, cpu_stat, argparser.get<std::string>("--status"));
+    int return_val = loop(display,
+      cpu_state_info,
+      battery_state_info,
+      argparser.get<std::string>("--status"));
 
     // Close the X server display
     if (XCloseDisplay(display) < 0) {
@@ -92,25 +100,31 @@ int main(int argc, char** argv) {
 }
 
 int loop(Display* display,
-  std::unique_ptr<status_bar::cpu>& cpu_stat,
+  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
+  status_bar::battery_state& battery_state_info,
   const std::string& status) {
     while (true) {
-        std::string formatted_status = format_status(cpu_stat, status);
+        std::string formatted_status =
+          format_status(cpu_state_info, battery_state_info, status);
 
-        if (XStoreName(
-              display, DefaultRootWindow(display), formatted_status.data())
-          < 0) {
-            std::cerr << "Error: XStoreName: Allocation failed\n";
-            return 1;
-        }
-        XFlush(display);
+        std::cout << formatted_status << std::endl;
+
+        // if (XStoreName(
+        //       display, DefaultRootWindow(display), formatted_status.data())
+        //   < 0) {
+        //     std::cerr << "Error: XStoreName: Allocation failed\n";
+        //     return 1;
+        // }
+        // XFlush(display);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
 
 std::string format_status(
-  std::unique_ptr<status_bar::cpu>& cpu_stat, const std::string& status) {
+  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
+  status_bar::battery_state& battery_state_info,
+  const std::string& status) {
     std::string formatted_status;
 
     bool found_escape_sequence = false;
@@ -132,64 +146,86 @@ std::string format_status(
                 insert = "%";
                 break;
             case 't':
-                insert = status_bar::time();
+                insert = status_bar::get_time();
                 break;
             case 'u':
-                insert = status_bar::uptime();
+                insert = status_bar::get_uptime();
                 break;
             case 'd':
-                insert = status_bar::disk_percent();
+                insert = status_bar::get_disk_percent();
                 break;
             case 's':
-                insert = status_bar::swap_percent();
+                insert = status_bar::get_swap_percent();
                 break;
             case 'm':
-                insert = status_bar::memory_percent();
+                insert = status_bar::get_memory_percent();
                 break;
             case 'c':
-                insert = status_bar::cpu_percent(cpu_stat);
+                insert = status_bar::get_cpu_percent(cpu_state_info);
                 break;
             case 'C':
-                insert = status_bar::cpu_temperature();
+                insert = status_bar::get_cpu_temperature();
                 break;
             case '1':
-                insert = status_bar::one_minute_load_average();
+                insert = status_bar::get_one_minute_load_average();
                 break;
             case '5':
-                insert = status_bar::five_minute_load_average();
+                insert = status_bar::get_five_minute_load_average();
                 break;
             case 'f':
-                insert = status_bar::fifteen_minute_load_average();
+                insert = status_bar::get_fifteen_minute_load_average();
                 break;
-            case 'b':
-                insert = status_bar::battery_state();
+            case 'b': {
+                auto battery = status_bar::get_battery();
+                if (battery.has_value()) {
+                    insert = status_bar::get_battery_status(battery.value());
+                } else {
+                    insert = status_bar::error_str;
+                }
                 break;
-            case 'B':
-                insert = status_bar::battery_percent();
+            }
+            case 'B': {
+                auto battery = status_bar::get_battery();
+                if (battery.has_value()) {
+                    insert = status_bar::get_battery_percent(battery.value());
+                } else {
+                    insert = status_bar::error_str;
+                }
                 break;
+            }
+            case 'T': {
+                auto battery = status_bar::get_battery();
+                if (battery.has_value()) {
+                    insert = status_bar::get_battery_time_remaining(
+                      battery.value(), battery_state_info);
+                } else {
+                    insert = status_bar::error_str;
+                }
+                break;
+            }
             case 'l':
-                insert = status_bar::backlight_percent();
+                insert = status_bar::get_backlight_percent();
                 break;
             case 'w':
-                insert = status_bar::network_ssid();
+                insert = status_bar::get_network_ssid(status_bar::standby_str);
                 break;
             case 'W':
-                insert = status_bar::wifi_percent();
+                insert = status_bar::get_wifi_percent(status_bar::standby_str);
                 break;
             case 'p':
-                insert = status_bar::bluetooth_devices();
+                insert = status_bar::get_bluetooth_devices();
                 break;
             case 'v':
-                insert = status_bar::volume_status();
+                insert = status_bar::get_volume_status();
                 break;
             case 'V':
-                insert = status_bar::volume_perc();
+                insert = status_bar::get_volume_perc();
                 break;
             case 'e':
-                insert = status_bar::microphone_state();
+                insert = status_bar::get_microphone_state();
                 break;
             case 'a':
-                insert = status_bar::camera_state();
+                insert = status_bar::get_camera_state();
                 break;
             default:
                 break;

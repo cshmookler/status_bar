@@ -8,52 +8,109 @@
  */
 
 // Standard includes
+#include <array>
+#include <filesystem>
+#include <list>
 #include <memory>
+#include <optional>
 #include <string>
-
-// Local includes
-#include "proc_stat.hpp"
+#include <vector>
 
 namespace status_bar {
 
-[[nodiscard]] std::string time();
+[[nodiscard]] std::string get_time();
 
-[[nodiscard]] std::string uptime();
+[[nodiscard]] std::string get_uptime();
 
-[[nodiscard]] std::string disk_percent();
+[[nodiscard]] std::string get_disk_percent();
 
-[[nodiscard]] std::string memory_percent();
+[[nodiscard]] std::string get_memory_percent();
 
-[[nodiscard]] std::string swap_percent();
+[[nodiscard]] std::string get_swap_percent();
 
-[[nodiscard]] std::string cpu_percent(std::unique_ptr<cpu>& cpu_stat);
+struct cpu_state {
+    // clang-format off
+  private:
+    static const size_t index_start = __LINE__;
+  public:
+    enum class index : size_t {
+        user_mode,
+        low_priority_user_mode,
+        system_mode,
+        idle,
+        io_idle,
+        interrupt,
+        soft_interrupt,
+        stolen,
+        guest,
+        niced_guest,
+    };
+    static const size_t index_count = __LINE__ - index_start - 4;
+    // clang-format on
 
-[[nodiscard]] std::string cpu_temperature();
+  private:
+    std::array<size_t, index_count> entries_;
 
-[[nodiscard]] std::string one_minute_load_average();
+  public:
+    [[nodiscard]] bool update();
 
-[[nodiscard]] std::string five_minute_load_average();
+    [[nodiscard]] size_t get_total() const;
 
-[[nodiscard]] std::string fifteen_minute_load_average();
+    [[nodiscard]] size_t get_total(const std::vector<index>& indicies) const;
+};
 
-[[nodiscard]] std::string battery_state();
+[[nodiscard]] std::string get_cpu_percent(
+  std::unique_ptr<cpu_state>& cpu_state_info);
 
-[[nodiscard]] std::string battery_percent();
+[[nodiscard]] std::string get_cpu_temperature();
 
-[[nodiscard]] std::string backlight_percent();
+[[nodiscard]] std::string get_one_minute_load_average();
 
-[[nodiscard]] std::string network_ssid();
+[[nodiscard]] std::string get_five_minute_load_average();
 
-[[nodiscard]] std::string wifi_percent();
+[[nodiscard]] std::string get_fifteen_minute_load_average();
 
-[[nodiscard]] std::string bluetooth_devices();
+[[nodiscard]] std::optional<std::filesystem::path> get_battery();
 
-[[nodiscard]] std::string volume_status();
+[[nodiscard]] std::string get_battery_status(
+  const std::filesystem::path& battery_path);
 
-[[nodiscard]] std::string volume_perc();
+[[nodiscard]] std::string get_battery_percent(
+  const std::filesystem::path& battery_path);
 
-[[nodiscard]] std::string microphone_state();
+struct battery_state {
+    static const size_t sample_size = 50;
 
-[[nodiscard]] std::string camera_state();
+  private:
+    std::list<size_t> energy_remaining_;
+
+  public:
+    [[nodiscard]] bool add_sample(const std::filesystem::path& battery_path);
+
+    [[nodiscard]] bool has_enough_samples() const;
+
+    [[nodiscard]] std::string get_time_remaining() const;
+};
+
+[[nodiscard]] std::string get_battery_time_remaining(
+  const std::filesystem::path& battery_path, battery_state& battery_state_info);
+
+[[nodiscard]] std::string get_backlight_percent();
+
+[[nodiscard]] std::string get_network_ssid(
+  const std::filesystem::path& network_interface_path);
+
+[[nodiscard]] std::string get_wifi_percent(
+  const std::filesystem::path& network_interface_path);
+
+[[nodiscard]] std::string get_bluetooth_devices();
+
+[[nodiscard]] std::string get_volume_status();
+
+[[nodiscard]] std::string get_volume_perc();
+
+[[nodiscard]] std::string get_microphone_state();
+
+[[nodiscard]] std::string get_camera_state();
 
 } // namespace status_bar
