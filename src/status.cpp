@@ -486,8 +486,59 @@ std::string get_battery_time_remaining(
     return battery_state_info.get_time_remaining();
 }
 
+std::optional<std::filesystem::path> get_backlight() {
+    // documentation for /sys/class/backlight/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/backlight.h
+    // https://docs.kernel.org/gpu/backlight.html
+
+    const char* const devices_path = "/sys/class/backlight/";
+    const char* const device_brightness_filename = "brightness";
+    const char* const device_max_brightness_filename = "max_brightness";
+
+    for (const std::filesystem::directory_entry& device :
+      std::filesystem::directory_iterator(devices_path)) {
+        if (! std::filesystem::exists(
+              device.path() / device_brightness_filename)) {
+            continue;
+        }
+        if (! std::filesystem::exists(
+              device.path() / device_max_brightness_filename)) {
+            continue;
+        }
+
+        return device.path();
+    }
+
+    return std::nullopt;
+}
+
 std::string get_backlight_percent() {
-    return status_bar::null_str;
+    // documentation for /sys/class/backlight/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/backlight.h
+    // https://docs.kernel.org/gpu/backlight.html
+
+    const char* const battery_brightness_filename = "brightness";
+    const char* const battery_max_brightness_filename = "max_brightness";
+
+    auto backlight_path = get_backlight();
+    if (! backlight_path.has_value()) {
+        return status_bar::error_str;
+    }
+
+    std::string brightness =
+      get_first_line(backlight_path.value() / battery_brightness_filename);
+    if (brightness == status_bar::null_str) {
+        return status_bar::error_str;
+    }
+
+    std::string max_brightness =
+      get_first_line(backlight_path.value() / battery_max_brightness_filename);
+    if (max_brightness == status_bar::null_str) {
+        return status_bar::error_str;
+    }
+
+    return sprintf(
+      "%.0f", std::stof(brightness) / std::stof(max_brightness) * 1e2);
 }
 
 std::string get_network_ssid(

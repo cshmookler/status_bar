@@ -125,6 +125,8 @@ std::string format_status(
   std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
   status_bar::battery_state& battery_state_info,
   const std::string& status) {
+    auto battery = status_bar::get_battery();
+
     std::string formatted_status;
 
     bool found_escape_sequence = false;
@@ -175,26 +177,21 @@ std::string format_status(
             case 'f':
                 insert = status_bar::get_fifteen_minute_load_average();
                 break;
-            case 'b': {
-                auto battery = status_bar::get_battery();
+            case 'b':
                 if (battery.has_value()) {
                     insert = status_bar::get_battery_status(battery.value());
                 } else {
                     insert = status_bar::error_str;
                 }
                 break;
-            }
-            case 'B': {
-                auto battery = status_bar::get_battery();
+            case 'B':
                 if (battery.has_value()) {
                     insert = status_bar::get_battery_percent(battery.value());
                 } else {
                     insert = status_bar::error_str;
                 }
                 break;
-            }
-            case 'T': {
-                auto battery = status_bar::get_battery();
+            case 'T':
                 if (battery.has_value()) {
                     insert = status_bar::get_battery_time_remaining(
                       battery.value(), battery_state_info);
@@ -202,7 +199,6 @@ std::string format_status(
                     insert = status_bar::error_str;
                 }
                 break;
-            }
             case 'l':
                 insert = status_bar::get_backlight_percent();
                 break;

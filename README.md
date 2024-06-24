@@ -44,7 +44,7 @@ python build.py
 - [X] battery status
 - [X] battery percentage
 - [X] battery time remaining
-- [ ] backlight percentage
+- [X] backlight percentage
 - [ ] network SSID
 - [ ] wifi percentage
 - [ ] bluetooth device
