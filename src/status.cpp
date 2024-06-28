@@ -13,7 +13,9 @@
 #include <vector>
 
 // External includes
+#include <pwd.h>
 #include <sys/sysinfo.h>
+#include <unistd.h>
 
 // Local includes
 #include "constants.hpp"
@@ -235,7 +237,7 @@ std::string get_cpu_percent(std::unique_ptr<cpu_state>& cpu_state_info) {
     auto total_diff = static_cast<double>(new_total - prev_total);
     auto work_diff = static_cast<double>(new_work - prev_work);
 
-    return sprintf("%.0f", (work_diff / total_diff) * 1e2);
+    return sprintf("%2.0f", (work_diff / total_diff) * 1e2);
 }
 
 std::string get_cpu_temperature() {
@@ -380,10 +382,11 @@ std::string get_battery_status(const std::filesystem::path& battery_path) {
     // const char* const battery_status_unknown = "Unknown";
     const char* const battery_status_charging = "Charging";
     const char* const battery_status_discharging = "Discharging";
-    const char* const battery_status_not_charging = "Not Charging";
+    const char* const battery_status_not_charging = "Not charging";
     const char* const battery_status_full = "Full";
 
-    const int low_battery_percent = 20;
+    const int low_battery_percent = 40;
+    const int very_low_battery_percent = 20;
 
     std::string status = get_first_line(battery_path / battery_status_filename);
     if (status == battery_status_full) {
@@ -400,7 +403,11 @@ std::string get_battery_status(const std::filesystem::path& battery_path) {
         if (battery_percent == status_bar::error_str) {
             return status_bar::error_str;
         }
-        if (std::stoi(battery_percent) <= low_battery_percent) {
+        int battery_percent_numeric = std::stoi(battery_percent);
+        if (battery_percent_numeric <= low_battery_percent) {
+            return "🟠";
+        }
+        if (battery_percent_numeric <= very_low_battery_percent) {
             return "🔴";
         }
 
@@ -408,6 +415,10 @@ std::string get_battery_status(const std::filesystem::path& battery_path) {
     }
 
     return status_bar::error_str;
+}
+
+std::string get_battery_device(const std::filesystem::path& battery_path) {
+    return battery_path.stem();
 }
 
 std::string get_battery_percent(const std::filesystem::path& battery_path) {
@@ -541,14 +552,160 @@ std::string get_backlight_percent() {
       "%.0f", std::stof(brightness) / std::stof(max_brightness) * 1e2);
 }
 
+std::optional<std::filesystem::path> get_network() {
+    // documentation for /sys/class/net/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
+    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+
+    const char* const networks_path = "/sys/class/net/";
+    const char* const network_operstate_filename = "operstate";
+    const char* const network_device_path = "device/";
+    const char* const network_statistics_path = "statistics/";
+    const char* const network_statistics_rx_bytes_filename = "rx_bytes";
+    const char* const network_statistics_tx_bytes_filename = "tx_bytes";
+
+    for (const std::filesystem::directory_entry& device :
+      std::filesystem::directory_iterator(networks_path)) {
+        if (! std::filesystem::exists(
+              device.path() / network_operstate_filename)) {
+            continue;
+        }
+        if (! std::filesystem::exists(device.path() / network_device_path)) {
+            continue;
+        }
+        if (! std::filesystem::exists(device.path() / network_statistics_path
+              / network_statistics_rx_bytes_filename)) {
+            continue;
+        }
+        if (! std::filesystem::exists(device.path() / network_statistics_path
+              / network_statistics_tx_bytes_filename)) {
+            continue;
+        }
+
+        return device.path();
+    }
+
+    return std::nullopt;
+}
+
+std::string get_network_status(
+  const std::filesystem::path& network_interface_path) {
+    // documentation for /sys/class/net/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
+    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+
+    const char* const network_operstate_filename = "operstate";
+    // const char* const network_operstate_unknown = "unknown";
+    const char* const network_operstate_up = "up";
+    const char* const network_operstate_dormant = "dormant";
+    const char* const network_operstate_down = "down";
+
+    std::string operstate =
+      get_first_line(network_interface_path / network_operstate_filename);
+    if (operstate == status_bar::null_str) {
+        return status_bar::error_str;
+    }
+
+    if (operstate == network_operstate_up) {
+        return "🟢";
+    }
+    if (operstate == network_operstate_dormant) {
+        return "🟡";
+    }
+    if (operstate == network_operstate_down) {
+        return "🔴";
+    }
+
+    return status_bar::error_str;
+}
+
+std::string get_network_device(
+  const std::filesystem::path& network_interface_path) {
+    return network_interface_path.stem();
+}
+
 std::string get_network_ssid(
   const std::filesystem::path& network_interface_path) {
+    // documentation for /sys/class/net/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
+    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+
     return status_bar::null_str;
 }
 
-std::string get_wifi_percent(
+std::string get_network_percent(
   const std::filesystem::path& network_interface_path) {
+    // documentation for /sys/class/net/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
+    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+
     return status_bar::null_str;
+}
+
+size_t network_state::get_upload_byte_difference(size_t upload_byte_count) {
+    size_t difference = upload_byte_count - this->upload_byte_count_;
+    this->upload_byte_count_ = upload_byte_count;
+    return difference;
+}
+
+size_t network_state::get_download_byte_difference(size_t download_byte_count) {
+    size_t difference = download_byte_count - this->download_byte_count_;
+    this->download_byte_count_ = download_byte_count;
+    return difference;
+}
+
+std::string get_network_upload(
+  const std::filesystem::path& network_interface_path,
+  network_state& network_state_info) {
+    // documentation for /sys/class/net/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
+    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+
+    const char* const network_statistics_path = "statistics/";
+    const char* const network_statistics_tx_bytes_filename = "tx_bytes";
+
+    std::string upload_bytes = get_first_line(network_interface_path
+      / network_statistics_path / network_statistics_tx_bytes_filename);
+    if (upload_bytes == status_bar::null_str) {
+        return status_bar::error_str;
+    }
+
+    size_t upload_bytes_numeric = std::stoull(upload_bytes);
+
+    auto upload_byte_difference =
+      network_state_info.get_upload_byte_difference(upload_bytes_numeric);
+    if (upload_byte_difference == upload_bytes_numeric) {
+        return status_bar::standby_str;
+    }
+
+    return sprintf("%i", upload_byte_difference);
+}
+
+std::string get_network_download(
+  const std::filesystem::path& network_interface_path,
+  network_state& network_state_info) {
+    // documentation for /sys/class/net/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
+    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+
+    const char* const network_statistics_path = "statistics/";
+    const char* const network_statistics_rx_bytes_filename = "rx_bytes";
+
+    std::string download_bytes = get_first_line(network_interface_path
+      / network_statistics_path / network_statistics_rx_bytes_filename);
+    if (download_bytes == status_bar::null_str) {
+        return status_bar::error_str;
+    }
+
+    size_t download_bytes_numeric = std::stoull(download_bytes);
+
+    auto download_byte_difference =
+      network_state_info.get_download_byte_difference(download_bytes_numeric);
+    if (download_byte_difference == download_bytes_numeric) {
+        return status_bar::standby_str;
+    }
+
+    return sprintf("%i", download_byte_difference);
 }
 
 std::string get_bluetooth_devices() {
@@ -569,6 +726,17 @@ std::string get_microphone_state() {
 
 std::string get_camera_state() {
     return status_bar::null_str;
+}
+
+std::string get_user() {
+    auto uid = geteuid();
+
+    struct passwd* passwd_info = getpwuid(uid);
+    if (passwd_info == nullptr) {
+        return status_bar::error_str;
+    }
+
+    return passwd_info->pw_name;
 }
 
 } // namespace status_bar

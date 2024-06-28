@@ -15,14 +15,10 @@
 #include "status.hpp"
 #include "version.hpp"
 
-int loop(Display* display,
-  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
-  status_bar::battery_state& battery_state_info,
-  const std::string& status);
-
 [[nodiscard]] std::string format_status(
   std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
   status_bar::battery_state& battery_state_info,
+  status_bar::network_state& network_state_info,
   const std::string& status);
 
 int main(int argc, char** argv) {
@@ -52,19 +48,25 @@ int main(int argc, char** argv) {
             "    %5    5 minute load average\n"
             "    %f    15 minute load average\n"
             "    %b    battery state\n"
+            "    %n    battery device\n"
             "    %B    battery percentage\n"
             "    %T    battery time remaining\n"
             "    %l    backlight percentage\n"
+            "    %S    network status\n"
+            "    %N    network device\n"
             "    %w    network SSID\n"
-            "    %W    WIFI percentage\n"
+            "    %W    network percentage\n"
+            "    %U    network upload\n"
+            "    %D    network download\n"
             "    %p    bluetooth devices\n"
             "    %v    volume mute\n"
             "    %V    volume percentage\n"
             "    %e    microphone state\n"
-            "    %a    camera state\n   ")
+            "    %a    camera state\n"
+            "    %x    user\n   ")
       .default_value(
-        " %V%%v | %v%%m | %p | %w %W%%w | %l%%l | %b %B%%b %T | %1 "
-        "%5 %f | %CC | %c%%c | %m%%m | %s%%s | %d%%d | %t ");
+        " %a %e | %l%%l | %v %V%%v | %p | %S %N %W%%w %w %U %D | "
+        "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %x ");
 
     // Parse arguments
     try {
@@ -75,6 +77,8 @@ int main(int argc, char** argv) {
         std::exit(1);
     }
 
+    auto status = argparser.get<std::string>("--status");
+
     // Open the X server display
     Display* display = XOpenDisplay(nullptr);
     if (display == nullptr) {
@@ -84,11 +88,22 @@ int main(int argc, char** argv) {
 
     std::unique_ptr<status_bar::cpu_state> cpu_state_info{};
     status_bar::battery_state battery_state_info{};
+    status_bar::network_state network_state_info{};
 
-    int return_val = loop(display,
-      cpu_state_info,
-      battery_state_info,
-      argparser.get<std::string>("--status"));
+    while (true) {
+        std::string formatted_status = format_status(
+          cpu_state_info, battery_state_info, network_state_info, status);
+
+        if (XStoreName(
+              display, DefaultRootWindow(display), formatted_status.data())
+          < 0) {
+            std::cerr << "Error: XStoreName: Allocation failed\n";
+            return 1;
+        }
+        XFlush(display);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 
     // Close the X server display
     if (XCloseDisplay(display) < 0) {
@@ -96,36 +111,16 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    return return_val;
-}
-
-int loop(Display* display,
-  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
-  status_bar::battery_state& battery_state_info,
-  const std::string& status) {
-    while (true) {
-        std::string formatted_status =
-          format_status(cpu_state_info, battery_state_info, status);
-
-        std::cout << formatted_status << std::endl;
-
-        // if (XStoreName(
-        //       display, DefaultRootWindow(display), formatted_status.data())
-        //   < 0) {
-        //     std::cerr << "Error: XStoreName: Allocation failed\n";
-        //     return 1;
-        // }
-        // XFlush(display);
-
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    return 0;
 }
 
 std::string format_status(
   std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
   status_bar::battery_state& battery_state_info,
+  status_bar::network_state& network_state_info,
   const std::string& status) {
     auto battery = status_bar::get_battery();
+    auto network = status_bar::get_network();
 
     std::string formatted_status;
 
@@ -184,6 +179,13 @@ std::string format_status(
                     insert = status_bar::error_str;
                 }
                 break;
+            case 'n':
+                if (battery.has_value()) {
+                    insert = status_bar::get_battery_device(battery.value());
+                } else {
+                    insert = status_bar::error_str;
+                }
+                break;
             case 'B':
                 if (battery.has_value()) {
                     insert = status_bar::get_battery_percent(battery.value());
@@ -202,11 +204,49 @@ std::string format_status(
             case 'l':
                 insert = status_bar::get_backlight_percent();
                 break;
+            case 'S':
+                if (network.has_value()) {
+                    insert = status_bar::get_network_status(network.value());
+                } else {
+                    insert = status_bar::error_str;
+                }
+                break;
+            case 'N':
+                if (network.has_value()) {
+                    insert = status_bar::get_network_device(network.value());
+                } else {
+                    insert = status_bar::error_str;
+                }
+                break;
             case 'w':
-                insert = status_bar::get_network_ssid(status_bar::standby_str);
+                if (network.has_value()) {
+                    insert = status_bar::get_network_ssid(network.value());
+                } else {
+                    insert = status_bar::error_str;
+                }
                 break;
             case 'W':
-                insert = status_bar::get_wifi_percent(status_bar::standby_str);
+                if (network.has_value()) {
+                    insert = status_bar::get_network_percent(network.value());
+                } else {
+                    insert = status_bar::error_str;
+                }
+                break;
+            case 'U':
+                if (network.has_value()) {
+                    insert = status_bar::get_network_upload(
+                      network.value(), network_state_info);
+                } else {
+                    insert = status_bar::error_str;
+                }
+                break;
+            case 'D':
+                if (network.has_value()) {
+                    insert = status_bar::get_network_download(
+                      network.value(), network_state_info);
+                } else {
+                    insert = status_bar::error_str;
+                }
                 break;
             case 'p':
                 insert = status_bar::get_bluetooth_devices();
@@ -222,6 +262,9 @@ std::string format_status(
                 break;
             case 'a':
                 insert = status_bar::get_camera_state();
+                break;
+            case 'x':
+                insert = status_bar::get_user();
                 break;
             default:
                 break;

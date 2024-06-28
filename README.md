@@ -42,9 +42,12 @@ python build.py
 - [X] cpu temperature
 - [X] load averages (1 min, 5 min, 15 min)
 - [X] battery status
+- [X] battery name
 - [X] battery percentage
 - [X] battery time remaining
 - [X] backlight percentage
+- [X] network status
+- [X] network name
 - [ ] network SSID
 - [ ] wifi percentage
 - [ ] bluetooth device
@@ -52,3 +55,4 @@ python build.py
 - [ ] volume percentage
 - [ ] microphone status
 - [ ] camera status
+- [X] user name

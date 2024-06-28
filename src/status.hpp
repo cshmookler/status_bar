@@ -75,11 +75,14 @@ struct cpu_state {
 [[nodiscard]] std::string get_battery_status(
   const std::filesystem::path& battery_path);
 
+[[nodiscard]] std::string get_battery_device(
+  const std::filesystem::path& battery_path);
+
 [[nodiscard]] std::string get_battery_percent(
   const std::filesystem::path& battery_path);
 
 struct battery_state {
-    static const size_t sample_size = 50;
+    static const size_t sample_size = 60;
 
   private:
     std::list<size_t> energy_remaining_;
@@ -97,11 +100,38 @@ struct battery_state {
 
 [[nodiscard]] std::string get_backlight_percent();
 
+[[nodiscard]] std::optional<std::filesystem::path> get_network();
+
+[[nodiscard]] std::string get_network_status(
+  const std::filesystem::path& network_interface_path);
+
+[[nodiscard]] std::string get_network_device(
+  const std::filesystem::path& network_interface_path);
+
 [[nodiscard]] std::string get_network_ssid(
   const std::filesystem::path& network_interface_path);
 
-[[nodiscard]] std::string get_wifi_percent(
+[[nodiscard]] std::string get_network_percent(
   const std::filesystem::path& network_interface_path);
+
+struct network_state {
+  private:
+    size_t upload_byte_count_ = 0;
+    size_t download_byte_count_ = 0;
+
+  public:
+    size_t get_upload_byte_difference(size_t upload_byte_count);
+
+    size_t get_download_byte_difference(size_t download_byte_count);
+};
+
+[[nodiscard]] std::string get_network_upload(
+  const std::filesystem::path& network_interface_path,
+  network_state& network_state_info);
+
+[[nodiscard]] std::string get_network_download(
+  const std::filesystem::path& network_interface_path,
+  network_state& network_state_info);
 
 [[nodiscard]] std::string get_bluetooth_devices();
 
@@ -112,5 +142,7 @@ struct battery_state {
 [[nodiscard]] std::string get_microphone_state();
 
 [[nodiscard]] std::string get_camera_state();
+
+[[nodiscard]] std::string get_user();
 
 } // namespace status_bar
