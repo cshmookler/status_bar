@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -13,7 +14,11 @@
 #include <vector>
 
 // External includes
+#include <cerrno>
+#include <linux/wireless.h>
 #include <pwd.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
 
@@ -25,12 +30,10 @@ namespace status_bar {
 
 template<typename... Args>
 [[nodiscard]] std::string sprintf(const char* format, Args... args) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,
-    // hicpp-vararg)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
     int size = std::snprintf(nullptr, 0, format, args...);
     std::string buffer(size, '\0');
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,
-    // hicpp-vararg)
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
     if (std::sprintf(buffer.data(), format, args...) < 0) {
         return error_str;
     }
@@ -624,22 +627,100 @@ std::string get_network_device(
     return network_interface_path.stem();
 }
 
+class unix_socket {
+    static const int default_protocol = 0;
+
+    int socket_file_descriptor_;
+
+  public:
+    unix_socket(int domain, int type, int protocol = default_protocol)
+    : socket_file_descriptor_(socket(domain, type, protocol)) {
+    }
+
+    unix_socket(const unix_socket&) = delete;
+    unix_socket(unix_socket&&) noexcept = default;
+    unix_socket& operator=(const unix_socket&) = delete;
+    unix_socket& operator=(unix_socket&&) noexcept = default;
+
+    ~unix_socket() {
+        close(this->socket_file_descriptor_);
+        // do nothing if the socket fails to close.
+    }
+
+    [[nodiscard]] bool good() const {
+        return this->socket_file_descriptor_ >= 0;
+    }
+
+    template<typename... request_t>
+    // NOLINTNEXTLINE(google-runtime-int)
+    bool request(unsigned long request_type, request_t&... request) {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
+        auto result =
+          ioctl(this->socket_file_descriptor_, request_type, &request...);
+        if (result < 0) {
+            std::cerr << "ioctl(" << request_type
+                      << "): " << std::strerror(errno) << '\n';
+        }
+        return result >= 0;
+    }
+};
+
 std::string get_network_ssid(
   const std::filesystem::path& network_interface_path) {
-    // documentation for /sys/class/net/:
-    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
-    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+    // documentation:
+    // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    return status_bar::null_str;
+    unix_socket socket{ AF_INET, SOCK_DGRAM };
+    if (! socket.good()) {
+        return status_bar::error_str;
+    }
+
+    iwreq iwreq_info{};
+
+    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name,
+      network_interface_path.stem().string().data());
+
+    // This array must be 1 unit larger than the maximum ESSID size and default
+    // initialized so that the ESSID is null-terminated.
+    std::array<char, IW_ESSID_MAX_SIZE + 1> essid{};
+
+    iwreq_info.u.essid.pointer = essid.data();
+    iwreq_info.u.essid.length = essid.size();
+
+    if (! socket.request(SIOCGIWESSID, iwreq_info)) {
+        return status_bar::error_str;
+    }
+
+    return std::string{ essid.data() };
 }
 
-std::string get_network_percent(
+std::string get_network_signal_strength_percent(
   const std::filesystem::path& network_interface_path) {
-    // documentation for /sys/class/net/:
-    // https://github.com/torvalds/linux/blob/master/include/linux/net.h
-    // https://www.kernel.org/doc/html/latest/driver-api/input.html
+    // documentation:
+    // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    return status_bar::null_str;
+    unix_socket socket{ AF_INET, SOCK_DGRAM };
+    if (! socket.good()) {
+        return status_bar::error_str;
+    }
+
+    iwreq iwreq_info{};
+    iw_statistics iw_statistics_info{};
+    iwreq_info.u.data.pointer = &iw_statistics_info;
+    iwreq_info.u.data.length = sizeof(iw_statistics_info);
+
+    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name,
+      network_interface_path.stem().string().data());
+
+    if (! socket.request(SIOCGIWSTATS, iwreq_info)) {
+        return status_bar::error_str;
+    }
+
+    const double max_signal_strength = 70;
+    double signal_strength =
+      iw_statistics_info.qual.qual / max_signal_strength * 1e2;
+
+    return sprintf("%.0f", signal_strength);
 }
 
 size_t network_state::get_upload_byte_difference(size_t upload_byte_count) {

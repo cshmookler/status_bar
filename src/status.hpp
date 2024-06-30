@@ -111,7 +111,7 @@ struct battery_state {
 [[nodiscard]] std::string get_network_ssid(
   const std::filesystem::path& network_interface_path);
 
-[[nodiscard]] std::string get_network_percent(
+[[nodiscard]] std::string get_network_signal_strength_percent(
   const std::filesystem::path& network_interface_path);
 
 struct network_state {

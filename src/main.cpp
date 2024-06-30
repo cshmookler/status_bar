@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
             "    %S    network status\n"
             "    %N    network device\n"
             "    %w    network SSID\n"
-            "    %W    network percentage\n"
+            "    %W    network strength percentage\n"
             "    %U    network upload\n"
             "    %D    network download\n"
             "    %p    bluetooth devices\n"
@@ -227,7 +227,8 @@ std::string format_status(
                 break;
             case 'W':
                 if (network.has_value()) {
-                    insert = status_bar::get_network_percent(network.value());
+                    insert = status_bar::get_network_signal_strength_percent(
+                      network.value());
                 } else {
                     insert = status_bar::error_str;
                 }

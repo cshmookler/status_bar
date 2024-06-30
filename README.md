@@ -48,8 +48,8 @@ python build.py
 - [X] backlight percentage
 - [X] network status
 - [X] network name
-- [ ] network SSID
-- [ ] wifi percentage
+- [X] network SSID
+- [X] network signal strength percentage
 - [ ] bluetooth device
 - [ ] volume mute
 - [ ] volume percentage
