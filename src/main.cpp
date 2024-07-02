@@ -66,8 +66,8 @@ int main(int argc, char** argv) {
             "    %x    user\n"
             "    %k    outdated kernel indicator\n   ")
       .default_value(
-        " %a %e | %l%%l | %v %V%%v | %p | %S %N %W%%w %w %U %D | "
-        "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
+        " %a %e | %l%%l | %v %V%%v | %p | %S %W%%w %w | "
+        "%b %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
 
     // Parse arguments
     try {
