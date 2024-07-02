@@ -63,10 +63,11 @@ int main(int argc, char** argv) {
             "    %V    volume percentage\n"
             "    %e    microphone state\n"
             "    %a    camera state\n"
-            "    %x    user\n   ")
+            "    %x    user\n"
+            "    %k    outdated kernel indicator\n   ")
       .default_value(
         " %a %e | %l%%l | %v %V%%v | %p | %S %N %W%%w %w %U %D | "
-        "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %x ");
+        "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
 
     // Parse arguments
     try {
@@ -266,6 +267,9 @@ std::string format_status(
                 break;
             case 'x':
                 insert = status_bar::get_user();
+                break;
+            case 'k':
+                insert = status_bar::get_outdated_kernel_indicator();
                 break;
             default:
                 break;

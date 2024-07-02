@@ -1,5 +1,6 @@
 // Standard includes
 #include <array>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -14,12 +15,12 @@
 #include <vector>
 
 // External includes
-#include <cerrno>
 #include <linux/wireless.h>
 #include <pwd.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/sysinfo.h>
+#include <sys/utsname.h>
 #include <unistd.h>
 
 // Local includes
@@ -388,36 +389,39 @@ std::string get_battery_status(const std::filesystem::path& battery_path) {
     const char* const battery_status_not_charging = "Not charging";
     const char* const battery_status_full = "Full";
 
+    const int medium_battery_percent = 60;
     const int low_battery_percent = 40;
     const int very_low_battery_percent = 20;
 
     std::string status = get_first_line(battery_path / battery_status_filename);
-    if (status == battery_status_full) {
+
+    if (status == battery_status_full || status == battery_status_charging) {
         return "🟢";
-    }
-    if (status == battery_status_charging) {
-        return "🔵";
     }
     if (status == battery_status_not_charging) {
         return "❌";
     }
-    if (status == battery_status_discharging) {
-        std::string battery_percent = get_battery_percent(battery_path);
-        if (battery_percent == status_bar::error_str) {
-            return status_bar::error_str;
-        }
-        int battery_percent_numeric = std::stoi(battery_percent);
-        if (battery_percent_numeric <= low_battery_percent) {
-            return "🟠";
-        }
-        if (battery_percent_numeric <= very_low_battery_percent) {
-            return "🔴";
-        }
 
-        return "🟡";
+    if (status != battery_status_discharging) {
+        return status_bar::error_str;
     }
 
-    return status_bar::error_str;
+    std::string battery_percent = get_battery_percent(battery_path);
+    if (battery_percent == status_bar::error_str) {
+        return status_bar::error_str;
+    }
+
+    int battery_percent_numeric = std::stoi(battery_percent);
+    if (battery_percent_numeric <= very_low_battery_percent) {
+        return "🔴";
+    }
+    if (battery_percent_numeric <= low_battery_percent) {
+        return "🟠";
+    }
+    if (battery_percent_numeric <= medium_battery_percent) {
+        return "🟡";
+    }
+    return "🔵";
 }
 
 std::string get_battery_device(const std::filesystem::path& battery_path) {
@@ -818,6 +822,46 @@ std::string get_user() {
     }
 
     return passwd_info->pw_name;
+}
+
+std::string get_outdated_kernel_indicator() {
+    const char* const modules_path = "/usr/lib/modules/";
+
+    utsname utsname_info{};
+    if (uname(&utsname_info) != 0) {
+        std::cerr << "uname(): " << std::strerror(errno) << '\n';
+        return status_bar::error_str;
+    }
+
+    std::string running_release{ static_cast<const char*>(
+      utsname_info.release) };
+
+    std::string latest_installed_release{};
+
+    for (const std::filesystem::directory_entry& release :
+      std::filesystem::directory_iterator(modules_path)) {
+        if (! release.is_directory()) {
+            continue;
+        }
+
+        std::string release_name = release.path().filename();
+
+        if (latest_installed_release.empty()
+          || latest_installed_release < release_name) {
+            latest_installed_release = release_name;
+        }
+    }
+
+    if (latest_installed_release.empty()) {
+        std::cerr << "No installed kernels found in " << modules_path << '\n';
+        return status_bar::error_str;
+    }
+
+    if (running_release != latest_installed_release) {
+        return "🔴";
+    }
+
+    return "🟢";
 }
 
 } // namespace status_bar

@@ -145,4 +145,6 @@ struct network_state {
 
 [[nodiscard]] std::string get_user();
 
+[[nodiscard]] std::string get_outdated_kernel_indicator();
+
 } // namespace status_bar

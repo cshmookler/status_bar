@@ -56,3 +56,4 @@ python build.py
 - [ ] microphone status
 - [ ] camera status
 - [X] user name
+- [X] outdated kernel indicator
