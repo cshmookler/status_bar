@@ -16,6 +16,7 @@
 
 // External includes
 #include <gio/gio.h>
+#include <linux/videodev2.h>
 #include <linux/wireless.h>
 #include <pwd.h>
 #include <sys/ioctl.h>
@@ -632,6 +633,18 @@ std::string get_network_device(
     return network_interface_path.stem();
 }
 
+template<typename... request_t>
+bool request(
+  int file_descriptor, unsigned long request_type, request_t&... request) {
+    auto result = ioctl(file_descriptor, request_type, &request...);
+    int err = errno;
+    if (result < 0) {
+        std::cerr << "ioctl(" << request_type << "): " << std::strerror(err)
+                  << '\n';
+    }
+    return result >= 0;
+}
+
 class unix_socket {
     static const int default_protocol = 0;
 
@@ -657,16 +670,9 @@ class unix_socket {
     }
 
     template<typename... request_t>
-    // NOLINTNEXTLINE(google-runtime-int)
     bool request(unsigned long request_type, request_t&... request) {
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
-        auto result =
-          ioctl(this->socket_file_descriptor_, request_type, &request...);
-        if (result < 0) {
-            std::cerr << "ioctl(" << request_type
-                      << "): " << std::strerror(errno) << '\n';
-        }
-        return result >= 0;
+        return ::sbar::request(
+          this->socket_file_descriptor_, request_type, request...);
     }
 };
 
@@ -877,10 +883,112 @@ std::string get_volume_perc() {
 }
 
 std::string get_microphone_state() {
-    return sbar::null_str;
+    const char* const asound_path = "/proc/asound/";
+    const char* const card_prefix = "card";
+    const char* const device_prefix = "pcm";
+    const char* const device_postfix = "c"; // 'c' for capture
+    const char* const status_filename = "status";
+
+    size_t closed_device_count = 0;
+
+    for (const std::filesystem::directory_entry& card :
+      std::filesystem::directory_iterator(asound_path)) {
+        if (! card.is_directory()) {
+            continue;
+        }
+
+        std::string card_name = card.path().filename().string();
+        std::string_view card_name_raw{ card_name };
+
+        if (! remove_prefix(card_name_raw, card_prefix)) {
+            continue;
+        }
+
+        for (const std::filesystem::directory_entry& device :
+          std::filesystem::directory_iterator(card)) {
+            if (! device.is_directory()) {
+                continue;
+            }
+
+            std::string device_name = device.path().filename().string();
+            std::string_view device_name_raw{ device_name };
+
+            if (! (remove_prefix(device_name_raw, device_prefix)
+                  && remove_postfix(device_name_raw, device_postfix))) {
+                continue;
+            }
+
+            for (const std::filesystem::directory_entry& sub_device :
+              std::filesystem::directory_iterator(device)) {
+                if (! sub_device.is_directory()) {
+                    continue;
+                }
+
+                std::string status = get_first_line(
+                  sub_device / std::filesystem::path(status_filename));
+
+                if (status != "closed") {
+                    return "🟢";
+                }
+
+                closed_device_count++;
+            }
+        }
+    }
+
+    if (closed_device_count == 0) {
+        return "❌";
+    }
+
+    return "🔴";
 }
 
+// class readonly_file {
+//     std::FILE* file_;
+
+//   public:
+//     explicit readonly_file(const char* path) : file_(std::fopen(path, "r")) {
+//     }
+
+//     readonly_file(const readonly_file&) = delete;
+//     readonly_file(readonly_file&&) noexcept = default;
+//     readonly_file& operator=(const readonly_file&) = delete;
+//     readonly_file& operator=(readonly_file&&) noexcept = default;
+
+//     ~readonly_file() {
+//         std::fclose(this->file_);
+//         // do nothing if the file fails to close.
+//     }
+
+//     [[nodiscard]] bool good() const {
+//         return this->file_ == nullptr;
+//     }
+
+//     template<typename... request_t>
+//     bool request(unsigned long request_type, request_t&... request) {
+//         return ::sbar::request(fileno(this->file_), request_type,
+//         request...);
+//     }
+// };
+
 std::string get_camera_state() {
+    // readonly_file file{ "/dev/video0" };
+
+    // struct v4l2_capability capabilities {};
+
+    // const int argp = 0;
+
+    // struct v4l2_requestbuffers buffers {};
+
+    // struct v4l2_queryctrl ctrl {};
+
+    // if (! file.request(VIDIOC_QUERYCTRL, ctrl)) {
+    //     return sbar::error_str;
+    // }
+
+    // // return sprintf("%s", capabilities.driver);
+    // return sprintf("%s", ctrl.name);
+
     return sbar::null_str;
 }
 
@@ -900,7 +1008,8 @@ std::string get_outdated_kernel_indicator() {
 
     utsname utsname_info{};
     if (uname(&utsname_info) != 0) {
-        std::cerr << "uname(): " << std::strerror(errno) << '\n';
+        int err = errno;
+        std::cerr << "uname(): " << std::strerror(err) << '\n';
         return sbar::error_str;
     }
 

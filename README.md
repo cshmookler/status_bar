@@ -18,14 +18,14 @@ This project can be downloaded online [here](https://github.com/cshmookler/statu
 
 Alternatively, if you have [Git](https://git-scm.com/downloads/) installed, open command prompt (Windows) or a shell (Linux & Mac) and enter the commands below.  This project will be downloaded to the current working directory.
 
-```
+```bash
 git clone https://github.com/cshmookler/status_bar.git
 cd status_bar
 ```
 
 ### 3.&nbsp; Build this project from source.
 
-```
+```bash
 meson setup build
 cd build
 ninja
@@ -53,7 +53,7 @@ ninja
 - [ ] bluetooth device
 - [ ] volume mute
 - [ ] volume percentage
-- [ ] microphone status
+- [X] microphone status
 - [ ] camera status
 - [X] user name
 - [X] outdated kernel indicator
