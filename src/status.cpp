@@ -15,6 +15,7 @@
 #include <vector>
 
 // External includes
+#include <gio/gio.h>
 #include <linux/wireless.h>
 #include <pwd.h>
 #include <sys/ioctl.h>
@@ -27,7 +28,7 @@
 #include "constants.hpp"
 #include "status.hpp"
 
-namespace status_bar {
+namespace sbar {
 
 template<typename... Args>
 [[nodiscard]] std::string sprintf(const char* format, Args... args) {
@@ -76,7 +77,7 @@ template<typename... Args>
     std::ifstream file{ path };
     std::string first_line;
     if (! std::getline(file, first_line).good()) {
-        return status_bar::null_str;
+        return sbar::null_str;
     }
     return first_line;
 }
@@ -87,7 +88,7 @@ template<typename... Args>
     while (delimiter_index == 0) {
         delimiter_index = str.find(delimiter);
         if (delimiter_index == std::string::npos) {
-            return status_bar::null_str;
+            return sbar::null_str;
         }
         return_value = str.substr(0, delimiter_index);
         str = str.substr(delimiter_index + 1, str.size() - delimiter_index + 1);
@@ -101,7 +102,7 @@ template<size_t count>
     std::array<size_t, count> fields{};
     for (size_t& field : fields) {
         std::string split_str{ split(str, delimiter) };
-        if (split_str == status_bar::null_str) {
+        if (split_str == sbar::null_str) {
             field = 0;
         } else {
             field = std::stoull(split_str);
@@ -219,9 +220,9 @@ std::string get_cpu_percent(std::unique_ptr<cpu_state>& cpu_state_info) {
     if (cpu_state_info == nullptr) {
         cpu_state_info = std::make_unique<cpu_state>();
         if (! cpu_state_info->update()) {
-            return status_bar::error_str;
+            return sbar::error_str;
         }
-        return status_bar::standby_str;
+        return sbar::standby_str;
     }
 
     std::vector<cpu_state::index> idle_components{ cpu_state::index::idle };
@@ -231,7 +232,7 @@ std::string get_cpu_percent(std::unique_ptr<cpu_state>& cpu_state_info) {
     auto prev_work = prev_total - prev_idle;
 
     if (! cpu_state_info->update()) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     auto new_total = cpu_state_info->get_total();
@@ -298,7 +299,7 @@ std::string get_cpu_temperature() {
             }
 
             std::string sensor_input = get_first_line(sensor_input_path);
-            if (sensor_input == status_bar::null_str) {
+            if (sensor_input == sbar::null_str) {
                 continue;
             }
 
@@ -307,14 +308,14 @@ std::string get_cpu_temperature() {
         }
     }
 
-    return status_bar::error_str;
+    return sbar::error_str;
 }
 
 std::string get_one_minute_load_average() {
     std::array<double, 1> load_averages{};
 
     if (getloadavg(load_averages.data(), load_averages.size()) == -1) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     return sprintf("%.1f", load_averages.back());
@@ -324,7 +325,7 @@ std::string get_five_minute_load_average() {
     std::array<double, 2> load_averages{};
 
     if (getloadavg(load_averages.data(), load_averages.size()) == -1) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     return sprintf("%.1f", load_averages.back());
@@ -334,7 +335,7 @@ std::string get_fifteen_minute_load_average() {
     std::array<double, 3> load_averages{};
 
     if (getloadavg(load_averages.data(), load_averages.size()) == -1) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     return sprintf("%.1f", load_averages.back());
@@ -403,12 +404,12 @@ std::string get_battery_status(const std::filesystem::path& battery_path) {
     }
 
     if (status != battery_status_discharging) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     std::string battery_percent = get_battery_percent(battery_path);
-    if (battery_percent == status_bar::error_str) {
-        return status_bar::error_str;
+    if (battery_percent == sbar::error_str) {
+        return sbar::error_str;
     }
 
     int battery_percent_numeric = std::stoi(battery_percent);
@@ -437,8 +438,8 @@ std::string get_battery_percent(const std::filesystem::path& battery_path) {
 
     std::string capacity =
       get_first_line(battery_path / battery_capacity_filename);
-    if (capacity == status_bar::null_str) {
-        return status_bar::error_str;
+    if (capacity == sbar::null_str) {
+        return sbar::error_str;
     }
 
     return capacity;
@@ -453,7 +454,7 @@ bool battery_state::add_sample(const std::filesystem::path& battery_path) {
 
     std::string energy_now =
       get_first_line(battery_path / battery_energy_now_filename);
-    if (energy_now == status_bar::null_str) {
+    if (energy_now == sbar::null_str) {
         return false;
     }
 
@@ -472,7 +473,7 @@ bool battery_state::has_enough_samples() const {
 
 std::string battery_state::get_time_remaining() const {
     if (! this->has_enough_samples()) {
-        return status_bar::standby_str;
+        return sbar::standby_str;
     }
 
     size_t largest_sample = this->energy_remaining_.front();
@@ -480,7 +481,7 @@ std::string battery_state::get_time_remaining() const {
 
     size_t difference = largest_sample - smallest_sample;
     if (difference == 0) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
     size_t sample_periods_until_empty = largest_sample / difference;
     size_t seconds_until_empty = sample_periods_until_empty * sample_size;
@@ -498,7 +499,7 @@ std::string get_battery_time_remaining(
   const std::filesystem::path& battery_path,
   battery_state& battery_state_info) {
     if (! battery_state_info.add_sample(battery_path)) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     return battery_state_info.get_time_remaining();
@@ -540,19 +541,19 @@ std::string get_backlight_percent() {
 
     auto backlight_path = get_backlight();
     if (! backlight_path.has_value()) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     std::string brightness =
       get_first_line(backlight_path.value() / battery_brightness_filename);
-    if (brightness == status_bar::null_str) {
-        return status_bar::error_str;
+    if (brightness == sbar::null_str) {
+        return sbar::error_str;
     }
 
     std::string max_brightness =
       get_first_line(backlight_path.value() / battery_max_brightness_filename);
-    if (max_brightness == status_bar::null_str) {
-        return status_bar::error_str;
+    if (max_brightness == sbar::null_str) {
+        return sbar::error_str;
     }
 
     return sprintf(
@@ -609,8 +610,8 @@ std::string get_network_status(
 
     std::string operstate =
       get_first_line(network_interface_path / network_operstate_filename);
-    if (operstate == status_bar::null_str) {
-        return status_bar::error_str;
+    if (operstate == sbar::null_str) {
+        return sbar::error_str;
     }
 
     if (operstate == network_operstate_up) {
@@ -623,7 +624,7 @@ std::string get_network_status(
         return "🔴";
     }
 
-    return status_bar::error_str;
+    return sbar::error_str;
 }
 
 std::string get_network_device(
@@ -676,7 +677,7 @@ std::string get_network_ssid(
 
     unix_socket socket{ AF_INET, SOCK_DGRAM };
     if (! socket.good()) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     iwreq iwreq_info{};
@@ -692,7 +693,7 @@ std::string get_network_ssid(
     iwreq_info.u.essid.length = essid.size();
 
     if (! socket.request(SIOCGIWESSID, iwreq_info)) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     return std::string{ essid.data() };
@@ -705,7 +706,7 @@ std::string get_network_signal_strength_percent(
 
     unix_socket socket{ AF_INET, SOCK_DGRAM };
     if (! socket.good()) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     iwreq iwreq_info{};
@@ -717,7 +718,7 @@ std::string get_network_signal_strength_percent(
       network_interface_path.stem().string().data());
 
     if (! socket.request(SIOCGIWSTATS, iwreq_info)) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     const double max_signal_strength = 70;
@@ -751,8 +752,8 @@ std::string get_network_upload(
 
     std::string upload_bytes = get_first_line(network_interface_path
       / network_statistics_path / network_statistics_tx_bytes_filename);
-    if (upload_bytes == status_bar::null_str) {
-        return status_bar::error_str;
+    if (upload_bytes == sbar::null_str) {
+        return sbar::error_str;
     }
 
     size_t upload_bytes_numeric = std::stoull(upload_bytes);
@@ -760,7 +761,7 @@ std::string get_network_upload(
     auto upload_byte_difference =
       network_state_info.get_upload_byte_difference(upload_bytes_numeric);
     if (upload_byte_difference == upload_bytes_numeric) {
-        return status_bar::standby_str;
+        return sbar::standby_str;
     }
 
     return sprintf("%i", upload_byte_difference);
@@ -778,8 +779,8 @@ std::string get_network_download(
 
     std::string download_bytes = get_first_line(network_interface_path
       / network_statistics_path / network_statistics_rx_bytes_filename);
-    if (download_bytes == status_bar::null_str) {
-        return status_bar::error_str;
+    if (download_bytes == sbar::null_str) {
+        return sbar::error_str;
     }
 
     size_t download_bytes_numeric = std::stoull(download_bytes);
@@ -787,30 +788,100 @@ std::string get_network_download(
     auto download_byte_difference =
       network_state_info.get_download_byte_difference(download_bytes_numeric);
     if (download_byte_difference == download_bytes_numeric) {
-        return status_bar::standby_str;
+        return sbar::standby_str;
     }
 
     return sprintf("%i", download_byte_difference);
 }
 
 std::string get_bluetooth_devices() {
-    return status_bar::null_str;
+    // documentation for BlueZ:
+    // https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/
+    // https://people.csail.mit.edu/albert/bluez-intro/c404.html
+
+    // if (hci_for_each_dev(
+    //       HCI_UP,
+    //       [](int /* socket_file_descriptor */, int dev_id, long int /* arg
+    //       */) {
+    //           bdaddr_t bdaddr{};
+    //           if (hci_devba(dev_id, &bdaddr) != 0) {
+    //               std::cout << "hci_devba(" << dev_id
+    //                         << "): " << std::strerror(errno) << std::endl;
+    //               return -1;
+    //           }
+
+    //           hci_dev_info dev_info{};
+    //           if (hci_devinfo(dev_id, &dev_info) != 0) {
+    //               std::cout << "hci_devinfo(" << dev_id
+    //                         << "): " << std::strerror(errno) << std::endl;
+    //               return -1;
+    //           }
+
+    //           int device_descriptor = hci_open_dev(dev_id);
+    //           if (device_descriptor < 0) {
+    //               std::cout << "hci_open_dev(" << dev_id
+    //                         << "): " << std::strerror(errno) << std::endl;
+    //               return -1;
+    //           }
+
+    //           std::string remote_name(255, '\0');
+    //           if (hci_read_remote_name(device_descriptor,
+    //                 &bdaddr,
+    //                 static_cast<int>(remote_name.size()),
+    //                 remote_name.data(),
+    //                 1000)
+    //             != 0) {
+    //               std::cout << "hci_read_remote_name(" << device_descriptor
+    //                         << "): " << std::strerror(errno) << std::endl;
+    //               if (hci_close_dev(device_descriptor) != 0) {
+    //                   std::cout << "hci_close_dev(" << device_descriptor
+    //                             << "): " << std::strerror(errno) <<
+    //                             std::endl;
+    //               }
+    //               return -1;
+    //           }
+
+    //           if (hci_close_dev(device_descriptor) != 0) {
+    //               std::cout << "hci_close_dev(" << device_descriptor
+    //                         << "): " << std::strerror(errno) << std::endl;
+    //               return -1;
+    //           }
+
+    //           std::cout << remote_name << std::endl;
+    //           std::cout << "got here" << std::endl;
+    //           return 0;
+    //       },
+    //       0L)
+    //   >= 0) {
+    //     return sbar::error_str;
+    // }
+
+    // hci_dev_req device{};
+    // device.dev_id = dev_id;
+
+    // if (! socket.request(HCIGETDEVINFO, device)) {
+    //     return "b";
+    // }
+
+    // return sprintf("%i", device.dev_opt);
+
+    return sbar::null_str;
 }
 
 std::string get_volume_status() {
-    return status_bar::null_str;
+    return sbar::null_str;
 }
 
 std::string get_volume_perc() {
-    return status_bar::null_str;
+    return sbar::null_str;
 }
 
 std::string get_microphone_state() {
-    return status_bar::null_str;
+    return sbar::null_str;
 }
 
 std::string get_camera_state() {
-    return status_bar::null_str;
+    return sbar::null_str;
 }
 
 std::string get_user() {
@@ -818,7 +889,7 @@ std::string get_user() {
 
     struct passwd* passwd_info = getpwuid(uid);
     if (passwd_info == nullptr) {
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     return passwd_info->pw_name;
@@ -830,7 +901,7 @@ std::string get_outdated_kernel_indicator() {
     utsname utsname_info{};
     if (uname(&utsname_info) != 0) {
         std::cerr << "uname(): " << std::strerror(errno) << '\n';
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     std::string running_release{ static_cast<const char*>(
@@ -854,7 +925,7 @@ std::string get_outdated_kernel_indicator() {
 
     if (latest_installed_release.empty()) {
         std::cerr << "No installed kernels found in " << modules_path << '\n';
-        return status_bar::error_str;
+        return sbar::error_str;
     }
 
     if (running_release != latest_installed_release) {
@@ -864,4 +935,4 @@ std::string get_outdated_kernel_indicator() {
     return "🟢";
 }
 
-} // namespace status_bar
+} // namespace sbar

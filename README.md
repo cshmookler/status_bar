@@ -4,31 +4,31 @@ Status bar for [dwm](https://dwm.suckless.org). Customizable at runtime and upda
 
 ## Build from Source
 
-### 1.&nbsp; Install Git, Python, and a C++ compiler
-
-#### Linux (Ubuntu):
-
-```bash
-sudo apt install git python3 build-essential
-```
+### 1.&nbsp; Install a C++ compiler, Meson, GoogleTest (optional), X11 client-side library, argparse, and Glib.
 
 #### Linux (Arch):
 
 ```bash
-sudo pacman -S git python base-devel
+sudo pacman -S base-devel meson gtest libx11 argparse glib2
 ```
 
-### 2.&nbsp; Clone this template
+### 2.&nbsp; Clone this project.
+
+This project can be downloaded online [here](https://github.com/cshmookler/status_bar).
+
+Alternatively, if you have [Git](https://git-scm.com/downloads/) installed, open command prompt (Windows) or a shell (Linux & Mac) and enter the commands below.  This project will be downloaded to the current working directory.
 
 ```
 git clone https://github.com/cshmookler/status_bar.git
 cd status_bar
 ```
 
-### 3.&nbsp; Build from source
+### 3.&nbsp; Build this project from source.
 
 ```
-python build.py
+meson setup build
+cd build
+ninja
 ```
 
 ## **TODO**

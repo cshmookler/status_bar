@@ -7,10 +7,10 @@
  * @date 2024-06-08
  */
 
-namespace status_bar {
+namespace sbar {
 
 const char* const null_str = "";
 const char* const error_str = "n/a";
 const char* const standby_str = "--";
 
-} // namespace status_bar
+} // namespace sbar

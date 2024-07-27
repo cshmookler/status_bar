@@ -1,156 +1,63 @@
 # Declare project information
 project(
-    meson.get_external_property('_name', 'unknown'),
+    'status_bar',
     'cpp',
-    version : meson.get_external_property('_version', 'unknown'),
-    default_options : [ 'cpp_std=c++11' ],
+    version : files('VERSION'),
+    default_options : [ 'cpp_std=c++17' ],
 )
 
-# Get project name, version, and binary data
-project_name = meson.project_name()
-if project_name == 'unknown'
-    error('Failed to get project name from Conan')
-endif
-
-project_version = meson.project_version()
-if project_version == 'unknown'
-    error('Failed to get project version from Conan')
-endif
-
-project_binaries = meson.get_external_property('_binaries', [ 'unknown' ])
-if project_binaries == [ 'unknown' ]
-    error('Failed to get project binary data from Conan')
-endif
-
-# Project root directory
+# Project root and build directories
 root_dir = meson.project_source_root()
+build_dir = meson.project_build_root()
 
 # Insert the project version into the version header file
 conf_data = configuration_data()
-conf_data.set('version', project_version)
+conf_data.set('version', meson.project_version())
 configure_file(
     configuration : conf_data,
     input : 'src' / 'version.hpp.in',
     output : 'version.hpp',
 )
 
-# Copy the generated version header file to the source directory
-pymod = import('python')
-python = pymod.find_installation('python3')
-run_command(
-    python,
-    root_dir / 'build_scripts' / 'copy.py',
-    'version.hpp',
-    'src' / 'version.hpp',
-    check : true,
+dep_x11 = dependency(
+    'x11',
+    required : true,
+    method : 'auto',
 )
 
-foreach binary : project_binaries
-    # Accumulate binary information
-    binary_name = binary[0]
-    binary_type = binary[1]
-    binary_dependencies = binary[2]
-    binary_components = []
-    foreach dependency : binary_dependencies
-        dependency_name = dependency[0]
-        dependency_version = dependency[1]
-        dependency_enabled = dependency[2]
-        dependency_link_preference = dependency[3]
-        dependency_dynamic = dependency[4]
-        dependency_components = dependency[5]
-        foreach component : dependency_components
-            component_name = component[0]
-            component_version = component[1]
-            component_enabled = component[2]
-            if not component_enabled
-                continue
-            endif
-            if dependency_link_preference
-                binary_components += dependency(
-                    component_name,
-                    version : component_version,
-                    static : not dependency_dynamic,
-                    required : true,
-                    method : 'auto',
-                )
-            else
-                binary_components += dependency(
-                    component_name,
-                    version : component_version,
-                    required : true,
-                    method : 'auto',
-                )
-            endif
-        endforeach
-    endforeach
+dep_gio = dependency(
+    'gio-2.0',
+    required : true,
+    method : 'auto',
+)
 
-    # Accumulate the paths to the header files for the binary
-    binary_headers = files()
-    foreach header : binary[3]
-        header_path = root_dir
-        foreach header_segment : header
-            header_path = header_path / header_segment
-        endforeach
-        binary_headers += header_path
-    endforeach
+exe_status_bar = executable(
+    'status_bar',
+    files(
+        root_dir / 'src' / 'main.cpp',
+        root_dir / 'src' / 'version.cpp',
+        root_dir / 'src' / 'status.cpp',
+    ),
+    dependencies : [ dep_x11, dep_gio ],
+    install : true,
+)
 
-    # Accumulate the paths to the source files for the binary
-    binary_sources = files()
-    foreach source : binary[4]
-        source_path = root_dir
-        foreach source_segment : source
-            source_path = source_path / source_segment
-        endforeach
-        binary_sources += source_path
-    endforeach
+dep_gtest_main = dependency(
+    'gtest_main',
+    required : false,
+    method : 'auto',
+)
 
-    # Accumulate the path to the main file for the binary
-    binary_main = files()
-    main_path = root_dir
-    binary_has_main = binary[5].length() > 0
-    foreach main_segment : binary[5]
-        main_path = main_path / main_segment
-    endforeach
-    binary_main += main_path
-
-    # Compile the binary
-    if binary_type == 'application'
-        if binary_has_main
-            binary_sources += binary_main
-        else
-            # A 'main' function is required for applications
-            warning(
-                'Binary "' + binary_name + '" does not have an explicitly declared main function',
-            )
-        endif
-        executable(
-            binary_name,
-            binary_sources,
-            dependencies : binary_components,
-            install : true,
-        )
-    elif binary_type == 'library'
-        library(
-            binary_name,
-            binary_sources,
-            dependencies : binary_components,
-            version : project_version,
-            install : true,
-        )
-        install_headers(binary_headers, subdir : binary_name)
-    elif binary_type == 'test'
-        if binary_has_main
-            binary_sources += binary_main
-        endif
-        test = executable(
-            binary_name,
-            binary_sources,
-            dependencies : binary_components,
-        )
-        test(binary_name, test)
-    else
-        error(
-            'Invalid binary type "' + binary_type + '". Must either be "application", "library", or "test"',
-        )
-    endif
-endforeach
+if dep_gtest_main.found()
+    test_version = executable(
+        'version',
+        files(
+            'src' / 'version.test.cpp',
+            'src' / 'version.cpp',
+        ),
+        dependencies : dep_gtest_main,
+    )
+    test('version', test_version)
+else
+    warning('Skipping tests due to missing dependencies')
+endif

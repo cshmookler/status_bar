@@ -1,8 +1,8 @@
 #pragma once
 
-namespace status_bar {
+namespace sbar {
 
 constexpr const char* compiletime_version = "@version@";
 const char* get_runtime_version();
 
-} // namespace status_bar
+} // namespace sbar

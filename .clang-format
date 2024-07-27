@@ -8,7 +8,7 @@ DisableFormat : false                                           #  3.7      # (b
 #-------------------------------------------#      General      #-----------#-----------------------------------------------------------------------------------------------------------------#
 Language : Cpp                                                  #  3.5      # None, Cpp, CSharp, Java, JavaScript, Json, ObjC, Proto, TableGen, TextProto, Verilog
 Standard : Latest                                               #  3.7      # c++03, c++11, c++14, c++17, c++20, Latest, Auto
-BasedOnStyle : Chromium                                                     # LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU, InheritParentConfig
+BasedOnStyle : Microsoft                                                    # LLVM, Google, Chromium, Mozilla, WebKit, Microsoft, GNU, InheritParentConfig
 ColumnLimit : 80                                                #  3.7      # (unsigned integer)
 #-------------------------------------------#    Indentation    #-----------#-----------------------------------------------------------------------------------------------------------------#
 UseTab : Never                                                  #  3.7      # Never, ForIndentation, ForContinuationAndIndentation, AlignWithSpaces, Always
@@ -30,7 +30,7 @@ IndentPPDirectives : BeforeHash                                 #  6.x      # No
 IndentRequires : false                                          # 12.x      # (boolean)
 IndentWrappedFunctionNames : false                              #  3.7      # (boolean)
 NamespaceIndentation : None                                     #  3.7      # None, Inner, All
-LambdaBodyIndentation : OuterScope                              # 13.x      # Signature, OuterScope
+LambdaBodyIndentation : Signature                               # 13.x      # Signature, OuterScope
 # RequiresExpressionIndentation : OuterScope                      # 16.x      # OuterScope, Keyword
 #-------------------------------------------#     Alignment     #-----------#-----------------------------------------------------------------------------------------------------------------#
 AlignAfterOpenBracket : DontAlign                               #  3.8      # (boolean), Align, DontAlign, AlwaysBreak, BlockIndent

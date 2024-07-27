@@ -16,15 +16,15 @@
 #include "version.hpp"
 
 [[nodiscard]] std::string format_status(
-  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
-  status_bar::battery_state& battery_state_info,
-  status_bar::network_state& network_state_info,
+  std::unique_ptr<sbar::cpu_state>& cpu_state_info,
+  sbar::battery_state& battery_state_info,
+  sbar::network_state& network_state_info,
   const std::string& status);
 
 int main(int argc, char** argv) {
     // Setup the argument parser
     argparse::ArgumentParser argparser{ "status_bar",
-        status_bar::get_runtime_version() };
+        sbar::get_runtime_version() };
 
     argparser.add_argument("-p", "--path")
       .metavar("PATH")
@@ -87,9 +87,9 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::unique_ptr<status_bar::cpu_state> cpu_state_info{};
-    status_bar::battery_state battery_state_info{};
-    status_bar::network_state network_state_info{};
+    std::unique_ptr<sbar::cpu_state> cpu_state_info{};
+    sbar::battery_state battery_state_info{};
+    sbar::network_state network_state_info{};
 
     while (true) {
         std::string formatted_status = format_status(
@@ -115,13 +115,12 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-std::string format_status(
-  std::unique_ptr<status_bar::cpu_state>& cpu_state_info,
-  status_bar::battery_state& battery_state_info,
-  status_bar::network_state& network_state_info,
+std::string format_status(std::unique_ptr<sbar::cpu_state>& cpu_state_info,
+  sbar::battery_state& battery_state_info,
+  sbar::network_state& network_state_info,
   const std::string& status) {
-    auto battery = status_bar::get_battery();
-    auto network = status_bar::get_network();
+    auto battery = sbar::get_battery();
+    auto network = sbar::get_network();
 
     std::string formatted_status;
 
@@ -144,132 +143,132 @@ std::string format_status(
                 insert = "%";
                 break;
             case 't':
-                insert = status_bar::get_time();
+                insert = sbar::get_time();
                 break;
             case 'u':
-                insert = status_bar::get_uptime();
+                insert = sbar::get_uptime();
                 break;
             case 'd':
-                insert = status_bar::get_disk_percent();
+                insert = sbar::get_disk_percent();
                 break;
             case 's':
-                insert = status_bar::get_swap_percent();
+                insert = sbar::get_swap_percent();
                 break;
             case 'm':
-                insert = status_bar::get_memory_percent();
+                insert = sbar::get_memory_percent();
                 break;
             case 'c':
-                insert = status_bar::get_cpu_percent(cpu_state_info);
+                insert = sbar::get_cpu_percent(cpu_state_info);
                 break;
             case 'C':
-                insert = status_bar::get_cpu_temperature();
+                insert = sbar::get_cpu_temperature();
                 break;
             case '1':
-                insert = status_bar::get_one_minute_load_average();
+                insert = sbar::get_one_minute_load_average();
                 break;
             case '5':
-                insert = status_bar::get_five_minute_load_average();
+                insert = sbar::get_five_minute_load_average();
                 break;
             case 'f':
-                insert = status_bar::get_fifteen_minute_load_average();
+                insert = sbar::get_fifteen_minute_load_average();
                 break;
             case 'b':
                 if (battery.has_value()) {
-                    insert = status_bar::get_battery_status(battery.value());
+                    insert = sbar::get_battery_status(battery.value());
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'n':
                 if (battery.has_value()) {
-                    insert = status_bar::get_battery_device(battery.value());
+                    insert = sbar::get_battery_device(battery.value());
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'B':
                 if (battery.has_value()) {
-                    insert = status_bar::get_battery_percent(battery.value());
+                    insert = sbar::get_battery_percent(battery.value());
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'T':
                 if (battery.has_value()) {
-                    insert = status_bar::get_battery_time_remaining(
+                    insert = sbar::get_battery_time_remaining(
                       battery.value(), battery_state_info);
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'l':
-                insert = status_bar::get_backlight_percent();
+                insert = sbar::get_backlight_percent();
                 break;
             case 'S':
                 if (network.has_value()) {
-                    insert = status_bar::get_network_status(network.value());
+                    insert = sbar::get_network_status(network.value());
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'N':
                 if (network.has_value()) {
-                    insert = status_bar::get_network_device(network.value());
+                    insert = sbar::get_network_device(network.value());
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'w':
                 if (network.has_value()) {
-                    insert = status_bar::get_network_ssid(network.value());
+                    insert = sbar::get_network_ssid(network.value());
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'W':
                 if (network.has_value()) {
-                    insert = status_bar::get_network_signal_strength_percent(
+                    insert = sbar::get_network_signal_strength_percent(
                       network.value());
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'U':
                 if (network.has_value()) {
-                    insert = status_bar::get_network_upload(
+                    insert = sbar::get_network_upload(
                       network.value(), network_state_info);
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'D':
                 if (network.has_value()) {
-                    insert = status_bar::get_network_download(
+                    insert = sbar::get_network_download(
                       network.value(), network_state_info);
                 } else {
-                    insert = status_bar::error_str;
+                    insert = sbar::error_str;
                 }
                 break;
             case 'p':
-                insert = status_bar::get_bluetooth_devices();
+                insert = sbar::get_bluetooth_devices();
                 break;
             case 'v':
-                insert = status_bar::get_volume_status();
+                insert = sbar::get_volume_status();
                 break;
             case 'V':
-                insert = status_bar::get_volume_perc();
+                insert = sbar::get_volume_perc();
                 break;
             case 'e':
-                insert = status_bar::get_microphone_state();
+                insert = sbar::get_microphone_state();
                 break;
             case 'a':
-                insert = status_bar::get_camera_state();
+                insert = sbar::get_camera_state();
                 break;
             case 'x':
-                insert = status_bar::get_user();
+                insert = sbar::get_user();
                 break;
             case 'k':
-                insert = status_bar::get_outdated_kernel_indicator();
+                insert = sbar::get_outdated_kernel_indicator();
                 break;
             default:
                 break;

@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace status_bar {
+namespace sbar {
 
 [[nodiscard]] std::string get_time();
 
@@ -147,4 +147,4 @@ struct network_state {
 
 [[nodiscard]] std::string get_outdated_kernel_indicator();
 
-} // namespace status_bar
+} // namespace sbar
