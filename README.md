@@ -16,7 +16,7 @@ sudo pacman -S base-devel meson gtest argparse libx11 glib2 alsa-lib
 
 This project can be downloaded online [here](https://github.com/cshmookler/status_bar).
 
-Alternatively, if you have [Git](https://git-scm.com/downloads/) installed, open command prompt (Windows) or a shell (Linux & Mac) and enter the commands below.  This project will be downloaded to the current working directory.
+Alternatively, if you have [Git](https://git-scm.com/downloads/) installed, open a shell and enter the commands below.  This project will be downloaded to the current working directory.
 
 ```bash
 git clone https://github.com/cshmookler/status_bar.git
