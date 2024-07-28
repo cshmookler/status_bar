@@ -64,15 +64,16 @@ int main(int argc, char** argv) {
             "    %U    network upload\n"
             "    %D    network download\n"
             "    %p    bluetooth devices\n"
-            "    %v    volume mute\n"
-            "    %V    volume percentage\n"
-            "    %h    capture percentage\n"
+            "    %v    playback (volume) mute\n"
+            "    %V    playback (volume) percentage\n"
+            "    %h    capture (mic) mute\n"
+            "    %H    capture (mic) percentage\n"
             "    %e    microphone state\n"
             "    %a    camera state\n"
             "    %x    user\n"
             "    %k    outdated kernel indicator\n   ")
       .default_value(
-        " %a %e | %l%%l | %v %V%%v %h%%c | %p | %S %W%%w %w | "
+        " %a %e | %l%%l | %v %V%%v %h %H%%c | %p | %S %W%%w %w | "
         "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
 
     // Parse arguments
@@ -220,12 +221,15 @@ std::string format_status(std::unique_ptr<sbar::cpu_state>& cpu_state_info,
                 insert = sbar::get_bluetooth_devices();
                 break;
             case 'v':
-                insert = sbar::get_volume_status();
+                insert = sbar::get_volume_state();
                 break;
             case 'V':
                 insert = sbar::get_volume_perc();
                 break;
             case 'h':
+                insert = sbar::get_capture_state();
+                break;
+            case 'H':
                 insert = sbar::get_capture_perc();
                 break;
             case 'e':

@@ -905,10 +905,49 @@ class sound_mixer {
         return true;
     }
 
+    [[nodiscard]] static const char* get_indicator_(int state) {
+        if (state == 0) {
+            return "🔴";
+        }
+        return "🟢";
+    }
+
     [[nodiscard]] static long get_percent_(long min, long max, long value) {
         double ratio =
           static_cast<double>(value - min) / static_cast<double>(max);
         return static_cast<long>(ratio * 100.F);
+    }
+
+    template<typename F>
+    [[nodiscard]] static std::string get_state_(
+      const char* switch_function_name,
+      F switch_function,
+      snd_mixer_elem_t* mixer_elem) {
+        int left_state = 0;
+        if (handle_error_(switch_function_name,
+              switch_function,
+              mixer_elem,
+              snd_mixer_selem_channel_id_t::SND_MIXER_SCHN_FRONT_LEFT,
+              &left_state)) {
+            return sbar::error_str;
+        }
+
+        int right_state = 0;
+        if (handle_error_(switch_function_name,
+              switch_function,
+              mixer_elem,
+              snd_mixer_selem_channel_id_t::SND_MIXER_SCHN_FRONT_RIGHT,
+              &right_state)) {
+            return sbar::error_str;
+        }
+
+        if (left_state != right_state) {
+            return sprintf("(%s, %s)",
+              get_indicator_(left_state),
+              get_indicator_(right_state));
+        }
+
+        return get_indicator_(left_state);
     }
 
     template<typename R, typename V>
@@ -962,24 +1001,6 @@ class sound_mixer {
         }
 
         return sprintf("%i", left_volume_percent);
-    }
-
-    [[nodiscard]] static std::string get_playback_volume_(
-      snd_mixer_elem_t* mixer_elem) {
-        return get_volume_("snd_mixer_selem_get_playback_volume_range",
-          snd_mixer_selem_get_playback_volume_range,
-          "snd_mixer_selem_get_playback_volume",
-          snd_mixer_selem_get_playback_volume,
-          mixer_elem);
-    }
-
-    [[nodiscard]] static std::string get_capture_volume_(
-      snd_mixer_elem_t* mixer_elem) {
-        return get_volume_("snd_mixer_selem_get_capture_volume_range",
-          snd_mixer_selem_get_capture_volume_range,
-          "snd_mixer_selem_get_capture_volume",
-          snd_mixer_selem_get_capture_volume,
-          mixer_elem);
     }
 
     [[nodiscard]] snd_mixer_elem_t* get_mixer_elem_(
@@ -1040,37 +1061,36 @@ class sound_mixer {
     }
 
     [[nodiscard]] std::string get_playback_state() const {
-        snd_mixer_elem_t* mixer_elem =
-          this->get_mixer_elem_(playback_name, playback_index);
-
-        int value = 0;
-        if (handle_error_("snd_mixer_selem_get_playback_switch",
-              snd_mixer_selem_get_playback_switch,
-              mixer_elem,
-              snd_mixer_selem_channel_id_t::SND_MIXER_SCHN_FRONT_LEFT,
-              &value)) {
-            return sbar::error_str;
-        }
-
-        if (value == 0) {
-            return "🔴";
-        }
-
-        return "🟢";
-    }
-
-    [[nodiscard]] std::string get_playback_volume() const {
-        return get_playback_volume_(
+        return get_state_("snd_mixer_selem_get_playback_switch",
+          snd_mixer_selem_get_playback_switch,
           this->get_mixer_elem_(playback_name, playback_index));
     }
 
+    [[nodiscard]] std::string get_playback_volume() const {
+        return get_volume_("snd_mixer_selem_get_playback_volume_range",
+          snd_mixer_selem_get_playback_volume_range,
+          "snd_mixer_selem_get_playback_volume",
+          snd_mixer_selem_get_playback_volume,
+
+          this->get_mixer_elem_(playback_name, playback_index));
+    }
+
+    [[nodiscard]] std::string get_capture_state() const {
+        return get_state_("snd_mixer_selem_get_capture_switch",
+          snd_mixer_selem_get_capture_switch,
+          this->get_mixer_elem_(capture_name, capture_index));
+    }
+
     [[nodiscard]] std::string get_capture_volume() const {
-        return get_capture_volume_(
+        return get_volume_("snd_mixer_selem_get_capture_volume_range",
+          snd_mixer_selem_get_capture_volume_range,
+          "snd_mixer_selem_get_capture_volume",
+          snd_mixer_selem_get_capture_volume,
           this->get_mixer_elem_(capture_name, capture_index));
     }
 };
 
-std::string get_volume_status() {
+std::string get_volume_state() {
     sound_mixer mixer{};
     return mixer.get_playback_state();
 }
@@ -1078,6 +1098,11 @@ std::string get_volume_status() {
 std::string get_volume_perc() {
     sound_mixer mixer{};
     return mixer.get_playback_volume();
+}
+
+std::string get_capture_state() {
+    sound_mixer mixer{};
+    return mixer.get_capture_state();
 }
 
 std::string get_capture_perc() {

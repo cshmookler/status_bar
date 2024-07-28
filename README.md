@@ -53,6 +53,7 @@ ninja
 - [ ] bluetooth device
 - [X] volume mute
 - [X] volume percentage
+- [X] capture mute
 - [X] capture percentage
 - [X] microphone status
 - [ ] camera status

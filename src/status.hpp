@@ -135,9 +135,11 @@ struct network_state {
 
 [[nodiscard]] std::string get_bluetooth_devices();
 
-[[nodiscard]] std::string get_volume_status();
+[[nodiscard]] std::string get_volume_state();
 
 [[nodiscard]] std::string get_volume_perc();
+
+[[nodiscard]] std::string get_capture_state();
 
 [[nodiscard]] std::string get_capture_perc();
 
