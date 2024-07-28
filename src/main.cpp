@@ -9,6 +9,7 @@
 #include <X11/Xlib.h>
 #include <argparse/argparse.hpp>
 #include <sys/inotify.h>
+#include <type_traits>
 
 // Local includes
 #include "constants.hpp"
@@ -20,6 +21,10 @@
   sbar::battery_state& battery_state_info,
   sbar::network_state& network_state_info,
   const std::string& status);
+
+template<typename T, typename F, typename... A>
+[[nodiscard]] std::string func_or_error(
+  F function, const std::optional<T>& optional, A&... args);
 
 int main(int argc, char** argv) {
     // Setup the argument parser
@@ -67,7 +72,7 @@ int main(int argc, char** argv) {
             "    %k    outdated kernel indicator\n   ")
       .default_value(
         " %a %e | %l%%l | %v %V%%v | %p | %S %W%%w %w | "
-        "%b %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
+        "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
 
     // Parse arguments
     try {
@@ -75,7 +80,7 @@ int main(int argc, char** argv) {
     } catch (const std::exception& err) {
         std::cerr << err.what() << "\n\n";
         std::cerr << argparser;
-        std::exit(1);
+        return 1;
     }
 
     auto status = argparser.get<std::string>("--status");
@@ -173,81 +178,42 @@ std::string format_status(std::unique_ptr<sbar::cpu_state>& cpu_state_info,
                 insert = sbar::get_fifteen_minute_load_average();
                 break;
             case 'b':
-                if (battery.has_value()) {
-                    insert = sbar::get_battery_status(battery.value());
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(sbar::get_battery_status, battery);
                 break;
             case 'n':
-                if (battery.has_value()) {
-                    insert = sbar::get_battery_device(battery.value());
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(sbar::get_battery_device, battery);
                 break;
             case 'B':
-                if (battery.has_value()) {
-                    insert = sbar::get_battery_percent(battery.value());
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(sbar::get_battery_percent, battery);
                 break;
             case 'T':
-                if (battery.has_value()) {
-                    insert = sbar::get_battery_time_remaining(
-                      battery.value(), battery_state_info);
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(sbar::get_battery_time_remaining,
+                  battery,
+                  battery_state_info);
                 break;
             case 'l':
                 insert = sbar::get_backlight_percent();
                 break;
             case 'S':
-                if (network.has_value()) {
-                    insert = sbar::get_network_status(network.value());
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(sbar::get_network_status, network);
                 break;
             case 'N':
-                if (network.has_value()) {
-                    insert = sbar::get_network_device(network.value());
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(sbar::get_network_device, network);
                 break;
             case 'w':
-                if (network.has_value()) {
-                    insert = sbar::get_network_ssid(network.value());
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(sbar::get_network_ssid, network);
                 break;
             case 'W':
-                if (network.has_value()) {
-                    insert = sbar::get_network_signal_strength_percent(
-                      network.value());
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(
+                  sbar::get_network_signal_strength_percent, network);
                 break;
             case 'U':
-                if (network.has_value()) {
-                    insert = sbar::get_network_upload(
-                      network.value(), network_state_info);
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(
+                  sbar::get_network_upload, network, network_state_info);
                 break;
             case 'D':
-                if (network.has_value()) {
-                    insert = sbar::get_network_download(
-                      network.value(), network_state_info);
-                } else {
-                    insert = sbar::error_str;
-                }
+                insert = func_or_error(
+                  sbar::get_network_download, network, network_state_info);
                 break;
             case 'p':
                 insert = sbar::get_bluetooth_devices();
@@ -280,4 +246,17 @@ std::string format_status(std::unique_ptr<sbar::cpu_state>& cpu_state_info,
     }
 
     return formatted_status;
+}
+
+template<typename T, typename F, typename... A>
+std::string func_or_error(
+  F function, const std::optional<T>& optional, A&... args) {
+    static_assert(std::is_invocable_v<F, T, A&...>,
+      "The function must be invocable with the given optional value and "
+      "arguments");
+
+    if (optional.has_value()) {
+        return function(optional.value(), args...);
+    }
+    return sbar::error_str;
 }
