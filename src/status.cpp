@@ -15,6 +15,7 @@
 #include <vector>
 
 // External includes
+#include <alsa/asoundlib.h>
 #include <gio/gio.h>
 #include <linux/videodev2.h>
 #include <linux/wireless.h>
@@ -874,12 +875,214 @@ std::string get_bluetooth_devices() {
     return sbar::null_str;
 }
 
+class sound_mixer {
+    static constexpr const char* default_card = "default";
+
+    static constexpr const char* playback_name = "Master";
+    static constexpr int playback_index = 0;
+
+    static constexpr const char* capture_name = "Capture";
+    static constexpr int capture_index = 0;
+
+    static constexpr int mixer_mode = 0;
+
+    snd_mixer_t* mixer_ = nullptr;
+
+    bool good_ = false;
+
+    template<typename F, typename... A>
+    [[nodiscard]] static bool handle_error_(
+      const std::string_view& function_name, F function, A... args) {
+        static_assert(std::is_invocable_v<F, A...>);
+
+        int errnum = function(args...);
+        if (errnum == 0) {
+            return false;
+        }
+
+        std::cerr << function_name << "(): " << snd_strerror(errnum) << '\n';
+
+        return true;
+    }
+
+    [[nodiscard]] static long get_percent_(long min, long max, long value) {
+        double ratio =
+          static_cast<double>(value - min) / static_cast<double>(max);
+        return static_cast<long>(ratio * 100.F);
+    }
+
+    template<typename R, typename V>
+    [[nodiscard]] static std::string get_volume_(
+      const char* volume_range_function_name,
+      R volume_range_function,
+      const char* volume_function_name,
+      V volume_function,
+      snd_mixer_elem_t* mixer_elem) {
+        if (mixer_elem == nullptr) {
+            return sbar::error_str;
+        }
+
+        long min_volume = -1;
+        long max_volume = -1;
+        if (handle_error_(volume_range_function_name,
+              volume_range_function,
+              mixer_elem,
+              &min_volume,
+              &max_volume)) {
+            return sbar::error_str;
+        }
+
+        long left_volume = -1;
+        if (handle_error_(volume_function_name,
+              volume_function,
+              mixer_elem,
+              snd_mixer_selem_channel_id_t::SND_MIXER_SCHN_FRONT_LEFT,
+              &left_volume)) {
+            return sbar::error_str;
+        }
+
+        long right_volume = -1;
+        if (handle_error_(volume_function_name,
+              volume_function,
+              mixer_elem,
+              snd_mixer_selem_channel_id_t::SND_MIXER_SCHN_FRONT_RIGHT,
+              &right_volume)) {
+            return sbar::error_str;
+        }
+
+        long left_volume_percent =
+          get_percent_(min_volume, max_volume, left_volume);
+
+        long right_volume_percent =
+          get_percent_(min_volume, max_volume, right_volume);
+
+        if (left_volume != right_volume) {
+            return sprintf(
+              "(%i, %i)", left_volume_percent, right_volume_percent);
+        }
+
+        return sprintf("%i", left_volume_percent);
+    }
+
+    [[nodiscard]] static std::string get_playback_volume_(
+      snd_mixer_elem_t* mixer_elem) {
+        return get_volume_("snd_mixer_selem_get_playback_volume_range",
+          snd_mixer_selem_get_playback_volume_range,
+          "snd_mixer_selem_get_playback_volume",
+          snd_mixer_selem_get_playback_volume,
+          mixer_elem);
+    }
+
+    [[nodiscard]] static std::string get_capture_volume_(
+      snd_mixer_elem_t* mixer_elem) {
+        return get_volume_("snd_mixer_selem_get_capture_volume_range",
+          snd_mixer_selem_get_capture_volume_range,
+          "snd_mixer_selem_get_capture_volume",
+          snd_mixer_selem_get_capture_volume,
+          mixer_elem);
+    }
+
+    [[nodiscard]] snd_mixer_elem_t* get_mixer_elem_(
+      const char* selem_name, int selem_index) const {
+        if (! this->good()) {
+            return nullptr;
+        }
+
+        snd_mixer_selem_id_t* selem = nullptr;
+        if (handle_error_(
+              "snd_mixer_selem_id_malloc", snd_mixer_selem_id_malloc, &selem)) {
+            return nullptr;
+        }
+
+        snd_mixer_selem_id_set_name(selem, selem_name);
+        snd_mixer_selem_id_set_index(selem, selem_index);
+
+        return snd_mixer_find_selem(this->mixer_, selem);
+    }
+
+  public:
+    sound_mixer() {
+        if (handle_error_(
+              "snd_mixer_open", snd_mixer_open, &this->mixer_, mixer_mode)) {
+            return;
+        }
+        if (handle_error_("snd_mixer_attach",
+              snd_mixer_attach,
+              this->mixer_,
+              default_card)) {
+            return;
+        }
+        if (handle_error_("snd_mixer_selem_register",
+              snd_mixer_selem_register,
+              this->mixer_,
+              nullptr,
+              nullptr)) {
+            return;
+        }
+        if (handle_error_("snd_mixer_load", snd_mixer_load, this->mixer_)) {
+            return;
+        }
+        this->good_ = true;
+    }
+
+    sound_mixer(const sound_mixer&) = delete;
+    sound_mixer(sound_mixer&&) noexcept = default;
+    sound_mixer& operator=(const sound_mixer&) = delete;
+    sound_mixer& operator=(sound_mixer&&) noexcept = default;
+
+    ~sound_mixer() {
+        snd_mixer_close(this->mixer_);
+        // do nothing if the mixer fails to close.
+    }
+
+    [[nodiscard]] bool good() const {
+        return this->good_;
+    }
+
+    [[nodiscard]] std::string get_playback_state() const {
+        snd_mixer_elem_t* mixer_elem =
+          this->get_mixer_elem_(playback_name, playback_index);
+
+        int value = 0;
+        if (handle_error_("snd_mixer_selem_get_playback_switch",
+              snd_mixer_selem_get_playback_switch,
+              mixer_elem,
+              snd_mixer_selem_channel_id_t::SND_MIXER_SCHN_FRONT_LEFT,
+              &value)) {
+            return sbar::error_str;
+        }
+
+        if (value == 0) {
+            return "🔴";
+        }
+
+        return "🟢";
+    }
+
+    [[nodiscard]] std::string get_playback_volume() const {
+        return get_playback_volume_(
+          this->get_mixer_elem_(playback_name, playback_index));
+    }
+
+    [[nodiscard]] std::string get_capture_volume() const {
+        return get_capture_volume_(
+          this->get_mixer_elem_(capture_name, capture_index));
+    }
+};
+
 std::string get_volume_status() {
-    return sbar::null_str;
+    sound_mixer mixer{};
+    return mixer.get_playback_state();
 }
 
 std::string get_volume_perc() {
-    return sbar::null_str;
+    sound_mixer mixer{};
+    return mixer.get_playback_volume();
+}
+
+std::string get_capture_perc() {
+    sound_mixer mixer{};
+    return mixer.get_capture_volume();
 }
 
 std::string get_microphone_state() {
@@ -947,7 +1150,8 @@ std::string get_microphone_state() {
 //     std::FILE* file_;
 
 //   public:
-//     explicit readonly_file(const char* path) : file_(std::fopen(path, "r")) {
+//     explicit readonly_file(const char* path) : file_(std::fopen(path,
+//     "r")) {
 //     }
 
 //     readonly_file(const readonly_file&) = delete;

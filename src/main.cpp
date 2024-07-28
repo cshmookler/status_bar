@@ -66,12 +66,13 @@ int main(int argc, char** argv) {
             "    %p    bluetooth devices\n"
             "    %v    volume mute\n"
             "    %V    volume percentage\n"
+            "    %h    capture percentage\n"
             "    %e    microphone state\n"
             "    %a    camera state\n"
             "    %x    user\n"
             "    %k    outdated kernel indicator\n   ")
       .default_value(
-        " %a %e | %l%%l | %v %V%%v | %p | %S %W%%w %w | "
+        " %a %e | %l%%l | %v %V%%v %h%%c | %p | %S %W%%w %w | "
         "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
 
     // Parse arguments
@@ -223,6 +224,9 @@ std::string format_status(std::unique_ptr<sbar::cpu_state>& cpu_state_info,
                 break;
             case 'V':
                 insert = sbar::get_volume_perc();
+                break;
+            case 'h':
+                insert = sbar::get_capture_perc();
                 break;
             case 'e':
                 insert = sbar::get_microphone_state();

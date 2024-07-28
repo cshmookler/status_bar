@@ -139,6 +139,8 @@ struct network_state {
 
 [[nodiscard]] std::string get_volume_perc();
 
+[[nodiscard]] std::string get_capture_perc();
+
 [[nodiscard]] std::string get_microphone_state();
 
 [[nodiscard]] std::string get_camera_state();

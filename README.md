@@ -4,12 +4,12 @@ Status bar for [dwm](https://dwm.suckless.org). Customizable at runtime and upda
 
 ## Build from Source
 
-### 1.&nbsp; Install a C++ compiler, Meson, GoogleTest (optional), X11 client-side library, argparse, and Glib.
+### 1.&nbsp; Install a C++ compiler, Meson, GoogleTest (optional), argparse, X11 client-side libraries, Glib, and ALSA libraries.
 
 #### Linux (Arch):
 
 ```bash
-sudo pacman -S base-devel meson gtest libx11 argparse glib2
+sudo pacman -S base-devel meson gtest argparse libx11 glib2 alsa-lib 
 ```
 
 ### 2.&nbsp; Clone this project.
@@ -51,8 +51,9 @@ ninja
 - [X] network SSID
 - [X] network signal strength percentage
 - [ ] bluetooth device
-- [ ] volume mute
-- [ ] volume percentage
+- [X] volume mute
+- [X] volume percentage
+- [X] capture percentage
 - [X] microphone status
 - [ ] camera status
 - [X] user name

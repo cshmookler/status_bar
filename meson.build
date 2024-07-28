@@ -31,6 +31,12 @@ dep_gio = dependency(
     method : 'auto',
 )
 
+dep_alsa = dependency(
+    'alsa',
+    required : true,
+    method : 'auto',
+)
+
 exe_status_bar = executable(
     'status_bar',
     files(
@@ -38,7 +44,7 @@ exe_status_bar = executable(
         root_dir / 'src' / 'version.cpp',
         root_dir / 'src' / 'status.cpp',
     ),
-    dependencies : [ dep_x11, dep_gio ],
+    dependencies : [ dep_x11, dep_gio, dep_alsa ],
     install : true,
 )
 
