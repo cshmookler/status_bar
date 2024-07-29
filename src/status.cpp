@@ -16,7 +16,6 @@
 
 // External includes
 #include <alsa/asoundlib.h>
-#include <gio/gio.h>
 #include <linux/videodev2.h>
 #include <linux/wireless.h>
 #include <pwd.h>
@@ -181,7 +180,7 @@ std::string get_memory_percent() {
     return sprintf("%.0f", (used / total) * 1e2);
 }
 
-bool cpu_state::update() {
+bool Cpu_state::update() {
     const char* const proc_stat_path = "/proc/stat";
     const char* const proc_stat_cpu_field = "cpu ";
 
@@ -202,7 +201,7 @@ bool cpu_state::update() {
     return false;
 }
 
-size_t cpu_state::get_total() const {
+size_t Cpu_state::get_total() const {
     size_t total = 0;
     for (size_t entry : this->entries_) {
         total += entry;
@@ -210,24 +209,24 @@ size_t cpu_state::get_total() const {
     return total;
 }
 
-size_t cpu_state::get_total(const std::vector<index>& indicies) const {
+size_t Cpu_state::get_total(const std::vector<Index>& indicies) const {
     size_t total = 0;
-    for (index idx : indicies) {
+    for (Index idx : indicies) {
         total += this->entries_.at(static_cast<size_t>(idx));
     }
     return total;
 }
 
-std::string get_cpu_percent(std::unique_ptr<cpu_state>& cpu_state_info) {
+std::string get_cpu_percent(std::unique_ptr<Cpu_state>& cpu_state_info) {
     if (cpu_state_info == nullptr) {
-        cpu_state_info = std::make_unique<cpu_state>();
+        cpu_state_info = std::make_unique<Cpu_state>();
         if (! cpu_state_info->update()) {
             return sbar::error_str;
         }
         return sbar::standby_str;
     }
 
-    std::vector<cpu_state::index> idle_components{ cpu_state::index::idle };
+    std::vector<Cpu_state::Index> idle_components{ Cpu_state::Index::idle };
 
     auto prev_total = cpu_state_info->get_total();
     auto prev_idle = cpu_state_info->get_total(idle_components);
@@ -447,7 +446,7 @@ std::string get_battery_percent(const std::filesystem::path& battery_path) {
     return capacity;
 }
 
-bool battery_state::add_sample(const std::filesystem::path& battery_path) {
+bool Battery_state::add_sample(const std::filesystem::path& battery_path) {
     // documentation for /sys/class/power_supply/:
     // https://github.com/torvalds/linux/blob/master/include/linux/power_supply.h
     // https://www.kernel.org/doc/html/latest/power/power_supply_class.html
@@ -469,11 +468,11 @@ bool battery_state::add_sample(const std::filesystem::path& battery_path) {
     return true;
 }
 
-bool battery_state::has_enough_samples() const {
+bool Battery_state::has_enough_samples() const {
     return this->energy_remaining_.size() >= sample_size;
 }
 
-std::string battery_state::get_time_remaining() const {
+std::string Battery_state::get_time_remaining() const {
     if (! this->has_enough_samples()) {
         return sbar::standby_str;
     }
@@ -499,7 +498,7 @@ std::string battery_state::get_time_remaining() const {
 
 std::string get_battery_time_remaining(
   const std::filesystem::path& battery_path,
-  battery_state& battery_state_info) {
+  Battery_state& battery_state_info) {
     if (! battery_state_info.add_sample(battery_path)) {
         return sbar::error_str;
     }
@@ -634,9 +633,9 @@ std::string get_network_device(
     return network_interface_path.stem();
 }
 
-template<typename... request_t>
+template<typename... Request_t>
 bool request(
-  int file_descriptor, unsigned long request_type, request_t&... request) {
+  int file_descriptor, unsigned long request_type, Request_t&... request) {
     auto result = ioctl(file_descriptor, request_type, &request...);
     int err = errno;
     if (result < 0) {
@@ -646,22 +645,22 @@ bool request(
     return result >= 0;
 }
 
-class unix_socket {
+class Unix_socket {
     static const int default_protocol = 0;
 
     int socket_file_descriptor_;
 
   public:
-    unix_socket(int domain, int type, int protocol = default_protocol)
+    Unix_socket(int domain, int type, int protocol = default_protocol)
     : socket_file_descriptor_(socket(domain, type, protocol)) {
     }
 
-    unix_socket(const unix_socket&) = delete;
-    unix_socket(unix_socket&&) noexcept = default;
-    unix_socket& operator=(const unix_socket&) = delete;
-    unix_socket& operator=(unix_socket&&) noexcept = default;
+    Unix_socket(const Unix_socket&) = delete;
+    Unix_socket(Unix_socket&&) noexcept = default;
+    Unix_socket& operator=(const Unix_socket&) = delete;
+    Unix_socket& operator=(Unix_socket&&) noexcept = default;
 
-    ~unix_socket() {
+    ~Unix_socket() {
         close(this->socket_file_descriptor_);
         // do nothing if the socket fails to close.
     }
@@ -670,8 +669,8 @@ class unix_socket {
         return this->socket_file_descriptor_ >= 0;
     }
 
-    template<typename... request_t>
-    bool request(unsigned long request_type, request_t&... request) {
+    template<typename... Request_t>
+    bool request(unsigned long request_type, Request_t&... request) {
         return ::sbar::request(
           this->socket_file_descriptor_, request_type, request...);
     }
@@ -682,7 +681,7 @@ std::string get_network_ssid(
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    unix_socket socket{ AF_INET, SOCK_DGRAM };
+    Unix_socket socket{ AF_INET, SOCK_DGRAM };
     if (! socket.good()) {
         return sbar::error_str;
     }
@@ -711,7 +710,7 @@ std::string get_network_signal_strength_percent(
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    unix_socket socket{ AF_INET, SOCK_DGRAM };
+    Unix_socket socket{ AF_INET, SOCK_DGRAM };
     if (! socket.good()) {
         return sbar::error_str;
     }
@@ -735,13 +734,13 @@ std::string get_network_signal_strength_percent(
     return sprintf("%.0f", signal_strength);
 }
 
-size_t network_state::get_upload_byte_difference(size_t upload_byte_count) {
+size_t Network_state::get_upload_byte_difference(size_t upload_byte_count) {
     size_t difference = upload_byte_count - this->upload_byte_count_;
     this->upload_byte_count_ = upload_byte_count;
     return difference;
 }
 
-size_t network_state::get_download_byte_difference(size_t download_byte_count) {
+size_t Network_state::get_download_byte_difference(size_t download_byte_count) {
     size_t difference = download_byte_count - this->download_byte_count_;
     this->download_byte_count_ = download_byte_count;
     return difference;
@@ -749,7 +748,7 @@ size_t network_state::get_download_byte_difference(size_t download_byte_count) {
 
 std::string get_network_upload(
   const std::filesystem::path& network_interface_path,
-  network_state& network_state_info) {
+  Network_state& network_state_info) {
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -776,7 +775,7 @@ std::string get_network_upload(
 
 std::string get_network_download(
   const std::filesystem::path& network_interface_path,
-  network_state& network_state_info) {
+  Network_state& network_state_info) {
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -801,81 +800,7 @@ std::string get_network_download(
     return sprintf("%i", download_byte_difference);
 }
 
-std::string get_bluetooth_devices() {
-    // documentation for BlueZ:
-    // https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/
-    // https://people.csail.mit.edu/albert/bluez-intro/c404.html
-
-    // if (hci_for_each_dev(
-    //       HCI_UP,
-    //       [](int /* socket_file_descriptor */, int dev_id, long int /* arg
-    //       */) {
-    //           bdaddr_t bdaddr{};
-    //           if (hci_devba(dev_id, &bdaddr) != 0) {
-    //               std::cout << "hci_devba(" << dev_id
-    //                         << "): " << std::strerror(errno) << std::endl;
-    //               return -1;
-    //           }
-
-    //           hci_dev_info dev_info{};
-    //           if (hci_devinfo(dev_id, &dev_info) != 0) {
-    //               std::cout << "hci_devinfo(" << dev_id
-    //                         << "): " << std::strerror(errno) << std::endl;
-    //               return -1;
-    //           }
-
-    //           int device_descriptor = hci_open_dev(dev_id);
-    //           if (device_descriptor < 0) {
-    //               std::cout << "hci_open_dev(" << dev_id
-    //                         << "): " << std::strerror(errno) << std::endl;
-    //               return -1;
-    //           }
-
-    //           std::string remote_name(255, '\0');
-    //           if (hci_read_remote_name(device_descriptor,
-    //                 &bdaddr,
-    //                 static_cast<int>(remote_name.size()),
-    //                 remote_name.data(),
-    //                 1000)
-    //             != 0) {
-    //               std::cout << "hci_read_remote_name(" << device_descriptor
-    //                         << "): " << std::strerror(errno) << std::endl;
-    //               if (hci_close_dev(device_descriptor) != 0) {
-    //                   std::cout << "hci_close_dev(" << device_descriptor
-    //                             << "): " << std::strerror(errno) <<
-    //                             std::endl;
-    //               }
-    //               return -1;
-    //           }
-
-    //           if (hci_close_dev(device_descriptor) != 0) {
-    //               std::cout << "hci_close_dev(" << device_descriptor
-    //                         << "): " << std::strerror(errno) << std::endl;
-    //               return -1;
-    //           }
-
-    //           std::cout << remote_name << std::endl;
-    //           std::cout << "got here" << std::endl;
-    //           return 0;
-    //       },
-    //       0L)
-    //   >= 0) {
-    //     return sbar::error_str;
-    // }
-
-    // hci_dev_req device{};
-    // device.dev_id = dev_id;
-
-    // if (! socket.request(HCIGETDEVINFO, device)) {
-    //     return "b";
-    // }
-
-    // return sprintf("%i", device.dev_opt);
-
-    return sbar::null_str;
-}
-
-class sound_mixer {
+class Sound_mixer {
     static constexpr const char* default_card = "default";
 
     static constexpr const char* playback_name = "Master";
@@ -1022,7 +947,7 @@ class sound_mixer {
     }
 
   public:
-    sound_mixer() {
+    Sound_mixer() {
         if (handle_error_(
               "snd_mixer_open", snd_mixer_open, &this->mixer_, mixer_mode)) {
             return;
@@ -1046,12 +971,12 @@ class sound_mixer {
         this->good_ = true;
     }
 
-    sound_mixer(const sound_mixer&) = delete;
-    sound_mixer(sound_mixer&&) noexcept = default;
-    sound_mixer& operator=(const sound_mixer&) = delete;
-    sound_mixer& operator=(sound_mixer&&) noexcept = default;
+    Sound_mixer(const Sound_mixer&) = delete;
+    Sound_mixer(Sound_mixer&&) noexcept = default;
+    Sound_mixer& operator=(const Sound_mixer&) = delete;
+    Sound_mixer& operator=(Sound_mixer&&) noexcept = default;
 
-    ~sound_mixer() {
+    ~Sound_mixer() {
         snd_mixer_close(this->mixer_);
         // do nothing if the mixer fails to close.
     }
@@ -1091,22 +1016,22 @@ class sound_mixer {
 };
 
 std::string get_volume_state() {
-    sound_mixer mixer{};
+    Sound_mixer mixer{};
     return mixer.get_playback_state();
 }
 
 std::string get_volume_perc() {
-    sound_mixer mixer{};
+    Sound_mixer mixer{};
     return mixer.get_playback_volume();
 }
 
 std::string get_capture_state() {
-    sound_mixer mixer{};
+    Sound_mixer mixer{};
     return mixer.get_capture_state();
 }
 
 std::string get_capture_perc() {
-    sound_mixer mixer{};
+    Sound_mixer mixer{};
     return mixer.get_capture_volume();
 }
 

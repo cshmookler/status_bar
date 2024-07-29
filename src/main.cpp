@@ -1,5 +1,6 @@
 // Standard includes
 #include <chrono>
+#include <csignal>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -16,10 +17,64 @@
 #include "status.hpp"
 #include "version.hpp"
 
+bool done = false;
+
+void signal_handler(int signal) {
+    switch (signal) {
+        case SIGINT:
+            /* fallthrough */
+        case SIGTERM:
+            done = true;
+            break;
+        case SIGSEGV:
+            done = true;
+            std::cerr << "Error: Segmentation fault\n";
+            break;
+        default:
+            break;
+    }
+}
+
+class Root_window {
+    Display* display_;
+
+  public:
+    Root_window() : display_(XOpenDisplay(nullptr)) {
+        if (! this->good()) {
+            std::cerr << "Error: XOpenDisplay: Failed to open display\n";
+        }
+    }
+
+    Root_window(const Root_window&) = delete;
+    Root_window(Root_window&&) noexcept = delete;
+    Root_window& operator=(const Root_window&) = delete;
+    Root_window& operator=(Root_window&&) noexcept = delete;
+
+    ~Root_window() {
+        if (XCloseDisplay(this->display_) < 0) {
+            std::cerr << "Error: XCloseDisplay: Failed to close display\n";
+        }
+    }
+
+    [[nodiscard]] bool good() const {
+        return this->display_ != nullptr;
+    }
+
+    bool set_title(const char* title) {
+        if (XStoreName(this->display_, DefaultRootWindow(this->display_), title)
+          < 0) {
+            std::cerr << "Error: XStoreName: Allocation failed\n";
+            return false;
+        }
+        XFlush(this->display_);
+        return true;
+    }
+};
+
 [[nodiscard]] std::string format_status(
-  std::unique_ptr<sbar::cpu_state>& cpu_state_info,
-  sbar::battery_state& battery_state_info,
-  sbar::network_state& network_state_info,
+  std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
+  sbar::Battery_state& battery_state_info,
+  sbar::Network_state& network_state_info,
   const std::string& status);
 
 template<typename T, typename F, typename... A>
@@ -63,7 +118,6 @@ int main(int argc, char** argv) {
             "    %W    network strength percentage\n"
             "    %U    network upload\n"
             "    %D    network download\n"
-            "    %p    bluetooth devices\n"
             "    %v    playback (volume) mute\n"
             "    %V    playback (volume) percentage\n"
             "    %h    capture (mic) mute\n"
@@ -73,8 +127,8 @@ int main(int argc, char** argv) {
             "    %x    user\n"
             "    %k    outdated kernel indicator\n   ")
       .default_value(
-        " %a %e | %l%%l | %v %V%%v %h %H%%c | %p | %S %W%%w %w | "
-        "%b %n %B%%b %T | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
+        " %a %e | %v %V%%v %h %H%%c | %S %w %W%%w | "
+        "%b %n %B%%b %T %l%%l | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
 
     // Parse arguments
     try {
@@ -85,46 +139,48 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    // Attempt to set signal handlers (ignore them if they fail to be set)
+    // https://en.cppreference.com/w/cpp/utility/program/signal
+    std::signal(SIGINT, signal_handler);
+    std::signal(SIGSEGV, signal_handler);
+    std::signal(SIGTERM, signal_handler);
+
+    // Retrieve the status string
     auto status = argparser.get<std::string>("--status");
 
     // Open the X server display
-    Display* display = XOpenDisplay(nullptr);
-    if (display == nullptr) {
-        std::cerr << "Error: XOpenDisplay: Failed to open display\n";
+    Root_window root{};
+    if (! root.good()) {
         return 1;
     }
 
-    std::unique_ptr<sbar::cpu_state> cpu_state_info{};
-    sbar::battery_state battery_state_info{};
-    sbar::network_state network_state_info{};
+    std::unique_ptr<sbar::Cpu_state> cpu_state_info{};
+    sbar::Battery_state battery_state_info{};
+    sbar::Network_state network_state_info{};
 
-    while (true) {
+    while (! done) {
         std::string formatted_status = format_status(
           cpu_state_info, battery_state_info, network_state_info, status);
 
-        if (XStoreName(
-              display, DefaultRootWindow(display), formatted_status.data())
-          < 0) {
-            std::cerr << "Error: XStoreName: Allocation failed\n";
-            return 1;
+        // Set the status as the title of the root window
+        if (! root.set_title(formatted_status.data())) {
+            return 2;
         }
-        XFlush(display);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
-    // Close the X server display
-    if (XCloseDisplay(display) < 0) {
-        std::cerr << "Error: XCloseDisplay: Failed to close display\n";
-        return 1;
+    // Reset the root title
+    if (! root.set_title("")) {
+        return 3;
     }
 
     return 0;
 }
 
-std::string format_status(std::unique_ptr<sbar::cpu_state>& cpu_state_info,
-  sbar::battery_state& battery_state_info,
-  sbar::network_state& network_state_info,
+std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
+  sbar::Battery_state& battery_state_info,
+  sbar::Network_state& network_state_info,
   const std::string& status) {
     auto battery = sbar::get_battery();
     auto network = sbar::get_network();
@@ -216,9 +272,6 @@ std::string format_status(std::unique_ptr<sbar::cpu_state>& cpu_state_info,
             case 'D':
                 insert = func_or_error(
                   sbar::get_network_download, network, network_state_info);
-                break;
-            case 'p':
-                insert = sbar::get_bluetooth_devices();
                 break;
             case 'v':
                 insert = sbar::get_volume_state();

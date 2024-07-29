@@ -28,12 +28,12 @@ namespace sbar {
 
 [[nodiscard]] std::string get_swap_percent();
 
-struct cpu_state {
+struct Cpu_state {
     // clang-format off
   private:
     static const size_t index_start = __LINE__;
   public:
-    enum class index : size_t {
+    enum class Index : size_t {
         user_mode,
         low_priority_user_mode,
         system_mode,
@@ -56,11 +56,11 @@ struct cpu_state {
 
     [[nodiscard]] size_t get_total() const;
 
-    [[nodiscard]] size_t get_total(const std::vector<index>& indicies) const;
+    [[nodiscard]] size_t get_total(const std::vector<Index>& indicies) const;
 };
 
 [[nodiscard]] std::string get_cpu_percent(
-  std::unique_ptr<cpu_state>& cpu_state_info);
+  std::unique_ptr<Cpu_state>& cpu_state_info);
 
 [[nodiscard]] std::string get_cpu_temperature();
 
@@ -81,7 +81,7 @@ struct cpu_state {
 [[nodiscard]] std::string get_battery_percent(
   const std::filesystem::path& battery_path);
 
-struct battery_state {
+struct Battery_state {
     static const size_t sample_size = 60;
 
   private:
@@ -96,7 +96,7 @@ struct battery_state {
 };
 
 [[nodiscard]] std::string get_battery_time_remaining(
-  const std::filesystem::path& battery_path, battery_state& battery_state_info);
+  const std::filesystem::path& battery_path, Battery_state& battery_state_info);
 
 [[nodiscard]] std::string get_backlight_percent();
 
@@ -114,7 +114,7 @@ struct battery_state {
 [[nodiscard]] std::string get_network_signal_strength_percent(
   const std::filesystem::path& network_interface_path);
 
-struct network_state {
+struct Network_state {
   private:
     size_t upload_byte_count_ = 0;
     size_t download_byte_count_ = 0;
@@ -127,13 +127,11 @@ struct network_state {
 
 [[nodiscard]] std::string get_network_upload(
   const std::filesystem::path& network_interface_path,
-  network_state& network_state_info);
+  Network_state& network_state_info);
 
 [[nodiscard]] std::string get_network_download(
   const std::filesystem::path& network_interface_path,
-  network_state& network_state_info);
-
-[[nodiscard]] std::string get_bluetooth_devices();
+  Network_state& network_state_info);
 
 [[nodiscard]] std::string get_volume_state();
 
