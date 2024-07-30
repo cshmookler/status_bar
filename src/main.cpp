@@ -35,6 +35,31 @@ void signal_handler(int signal) {
     }
 }
 
+class Stopwatch {
+    using System_clock = std::chrono::system_clock;
+    using Time_point = System_clock::time_point;
+    using Duration = System_clock::duration;
+
+    std::string_view name_;
+    Time_point start_;
+
+  public:
+    Stopwatch(const std::string_view& name) : name_(name) {
+        std::cout << this->name_ << " start\n";
+        this->start_ = System_clock::now();
+    }
+
+    void reset() {
+        Duration elapsed = System_clock::now() - this->start_;
+        std::cout << this->name_ << " reset: " << std::setw(5)
+                  << std::chrono::duration_cast<std::chrono::microseconds>(
+                       elapsed)
+                       .count()
+                  << " us\n";
+        this->start_ = System_clock::now();
+    }
+};
+
 class Root_window {
     Display* display_;
 
@@ -96,39 +121,38 @@ int main(int argc, char** argv) {
       .metavar("STATUS")
       .nargs(1)
       .help("custom status with the following interpreted sequences:\n"
-            "    %%    a literal %\n"
-            "    %t    current time\n"
-            "    %u    uptime\n"
-            "    %d    disk usage\n"
-            "    %s    swap usage\n"
-            "    %m    memory usage\n"
-            "    %c    CPU usage\n"
-            "    %C    CPU temperature\n"
-            "    %1    1 minute load average\n"
-            "    %5    5 minute load average\n"
-            "    %f    15 minute load average\n"
-            "    %b    battery state\n"
-            "    %n    battery device\n"
-            "    %B    battery percentage\n"
-            "    %T    battery time remaining\n"
-            "    %l    backlight percentage\n"
-            "    %S    network status\n"
-            "    %N    network device\n"
-            "    %w    network SSID\n"
-            "    %W    network strength percentage\n"
-            "    %U    network upload\n"
-            "    %D    network download\n"
-            "    %v    playback (volume) mute\n"
-            "    %V    playback (volume) percentage\n"
-            "    %h    capture (mic) mute\n"
-            "    %H    capture (mic) percentage\n"
-            "    %e    microphone state\n"
-            "    %a    camera state\n"
-            "    %x    user\n"
-            "    %k    outdated kernel indicator\n   ")
-      .default_value(
-        " %a %e | %v %V%%v %h %H%%c | %S %N %w %W%%w | "
-        "%b %n %B%%b %T %l%%l | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
+            "    //    a literal /\n"
+            "    /t    current time\n"
+            "    /u    uptime\n"
+            "    /d    disk usage\n"
+            "    /s    swap usage\n"
+            "    /m    memory usage\n"
+            "    /c    CPU usage\n"
+            "    /C    CPU temperature\n"
+            "    /1    1 minute load average\n"
+            "    /5    5 minute load average\n"
+            "    /f    15 minute load average\n"
+            "    /b    battery state\n"
+            "    /n    battery device\n"
+            "    /B    battery percentage\n"
+            "    /T    battery time remaining\n"
+            "    /l    backlight percentage\n"
+            "    /S    network status\n"
+            "    /N    network device\n"
+            "    /w    network SSID\n"
+            "    /W    network strength percentage\n"
+            "    /U    network upload\n"
+            "    /D    network download\n"
+            "    /v    playback (volume) mute\n"
+            "    /V    playback (volume) percentage\n"
+            "    /h    capture (mic) mute\n"
+            "    /H    capture (mic) percentage\n"
+            "    /e    microphone state\n"
+            "    /a    camera state\n"
+            "    /x    user\n"
+            "    /k    outdated kernel indicator\n   ")
+      .default_value(" /ac /em | /v /V%v /h /H%c | /S /N /w /W%w | /b /n /B%b "
+                     "/T /l%l | /c%c /C°C | /m%m /s%s /d%d | /t | /k /x ");
 
     // Parse arguments
     try {
@@ -184,6 +208,7 @@ std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
   const std::string& status) {
     auto battery = sbar::get_battery();
     auto network = sbar::get_network();
+    sbar::Sound_mixer mixer{};
 
     std::string formatted_status;
 
@@ -191,7 +216,7 @@ std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
 
     for (char chr : status) {
         if (! found_escape_sequence) {
-            if (chr == '%') {
+            if (chr == '/') {
                 found_escape_sequence = true;
             } else {
                 formatted_status.push_back(chr);
@@ -202,8 +227,8 @@ std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
         std::string insert;
 
         switch (chr) {
-            case '%':
-                insert = "%";
+            case '/':
+                insert = "/";
                 break;
             case 't':
                 insert = sbar::get_time();
@@ -274,16 +299,16 @@ std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
                   sbar::get_network_download, network, network_data_stats);
                 break;
             case 'v':
-                insert = sbar::get_volume_state();
+                insert = sbar::get_volume_state(mixer);
                 break;
             case 'V':
-                insert = sbar::get_volume_perc();
+                insert = sbar::get_volume_perc(mixer);
                 break;
             case 'h':
-                insert = sbar::get_capture_state();
+                insert = sbar::get_capture_state(mixer);
                 break;
             case 'H':
-                insert = sbar::get_capture_perc();
+                insert = sbar::get_capture_perc(mixer);
                 break;
             case 'e':
                 insert = sbar::get_microphone_state();
