@@ -74,7 +74,7 @@ class Root_window {
 [[nodiscard]] std::string format_status(
   std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
   sbar::Battery_state& battery_state_info,
-  sbar::Network_state& network_state_info,
+  sbar::Network_data_stats& network_data_stats,
   const std::string& status);
 
 template<typename T, typename F, typename... A>
@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
             "    %x    user\n"
             "    %k    outdated kernel indicator\n   ")
       .default_value(
-        " %a %e | %v %V%%v %h %H%%c | %S %w %W%%w | "
+        " %a %e | %v %V%%v %h %H%%c | %S %N %w %W%%w | "
         "%b %n %B%%b %T %l%%l | %c%%c %C°C | %m%%m %s%%s %d%%d | %t | %k %x ");
 
     // Parse arguments
@@ -156,11 +156,11 @@ int main(int argc, char** argv) {
 
     std::unique_ptr<sbar::Cpu_state> cpu_state_info{};
     sbar::Battery_state battery_state_info{};
-    sbar::Network_state network_state_info{};
+    sbar::Network_data_stats network_data_stats{};
 
     while (! done) {
         std::string formatted_status = format_status(
-          cpu_state_info, battery_state_info, network_state_info, status);
+          cpu_state_info, battery_state_info, network_data_stats, status);
 
         // Set the status as the title of the root window
         if (! root.set_title(formatted_status.data())) {
@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
 
 std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
   sbar::Battery_state& battery_state_info,
-  sbar::Network_state& network_state_info,
+  sbar::Network_data_stats& network_data_stats,
   const std::string& status) {
     auto battery = sbar::get_battery();
     auto network = sbar::get_network();
@@ -267,11 +267,11 @@ std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
                 break;
             case 'U':
                 insert = func_or_error(
-                  sbar::get_network_upload, network, network_state_info);
+                  sbar::get_network_upload, network, network_data_stats);
                 break;
             case 'D':
                 insert = func_or_error(
-                  sbar::get_network_download, network, network_state_info);
+                  sbar::get_network_download, network, network_data_stats);
                 break;
             case 'v':
                 insert = sbar::get_volume_state();

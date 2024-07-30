@@ -597,7 +597,14 @@ std::optional<std::filesystem::path> get_network() {
     return std::nullopt;
 }
 
-std::string get_network_status(
+enum class Network_state : size_t {
+    error,
+    up,
+    dormant,
+    down,
+};
+
+Network_state get_network_state(
   const std::filesystem::path& network_interface_path) {
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
@@ -612,20 +619,36 @@ std::string get_network_status(
     std::string operstate =
       get_first_line(network_interface_path / network_operstate_filename);
     if (operstate == sbar::null_str) {
-        return sbar::error_str;
+        return Network_state::error;
     }
 
     if (operstate == network_operstate_up) {
-        return "🟢";
+        return Network_state::up;
     }
     if (operstate == network_operstate_dormant) {
-        return "🟡";
+        return Network_state::dormant;
     }
     if (operstate == network_operstate_down) {
-        return "🔴";
+        return Network_state::down;
     }
 
-    return sbar::error_str;
+    return Network_state::error;
+}
+
+std::string get_network_status(
+  const std::filesystem::path& network_interface_path) {
+    switch (get_network_state(network_interface_path)) {
+        case Network_state::up:
+            return "🟢";
+        case Network_state::dormant:
+            return "🟡";
+        case Network_state::down:
+            return "🔴";
+        case Network_state::error:
+            /* fallthrough */
+        default:
+            return sbar::error_str;
+    }
 }
 
 std::string get_network_device(
@@ -681,6 +704,10 @@ std::string get_network_ssid(
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
+    if (get_network_state(network_interface_path) != Network_state::up) {
+        return sbar::standby_str;
+    }
+
     Unix_socket socket{ AF_INET, SOCK_DGRAM };
     if (! socket.good()) {
         return sbar::error_str;
@@ -710,6 +737,10 @@ std::string get_network_signal_strength_percent(
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
+    if (get_network_state(network_interface_path) != Network_state::up) {
+        return sbar::standby_str;
+    }
+
     Unix_socket socket{ AF_INET, SOCK_DGRAM };
     if (! socket.good()) {
         return sbar::error_str;
@@ -734,13 +765,15 @@ std::string get_network_signal_strength_percent(
     return sprintf("%.0f", signal_strength);
 }
 
-size_t Network_state::get_upload_byte_difference(size_t upload_byte_count) {
+size_t Network_data_stats::get_upload_byte_difference(
+  size_t upload_byte_count) {
     size_t difference = upload_byte_count - this->upload_byte_count_;
     this->upload_byte_count_ = upload_byte_count;
     return difference;
 }
 
-size_t Network_state::get_download_byte_difference(size_t download_byte_count) {
+size_t Network_data_stats::get_download_byte_difference(
+  size_t download_byte_count) {
     size_t difference = download_byte_count - this->download_byte_count_;
     this->download_byte_count_ = download_byte_count;
     return difference;
@@ -748,7 +781,7 @@ size_t Network_state::get_download_byte_difference(size_t download_byte_count) {
 
 std::string get_network_upload(
   const std::filesystem::path& network_interface_path,
-  Network_state& network_state_info) {
+  Network_data_stats& network_state_info) {
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -775,7 +808,7 @@ std::string get_network_upload(
 
 std::string get_network_download(
   const std::filesystem::path& network_interface_path,
-  Network_state& network_state_info) {
+  Network_data_stats& network_state_info) {
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html

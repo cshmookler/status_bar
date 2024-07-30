@@ -114,7 +114,7 @@ struct Battery_state {
 [[nodiscard]] std::string get_network_signal_strength_percent(
   const std::filesystem::path& network_interface_path);
 
-struct Network_state {
+struct Network_data_stats {
   private:
     size_t upload_byte_count_ = 0;
     size_t download_byte_count_ = 0;
@@ -127,11 +127,11 @@ struct Network_state {
 
 [[nodiscard]] std::string get_network_upload(
   const std::filesystem::path& network_interface_path,
-  Network_state& network_state_info);
+  Network_data_stats& network_state_info);
 
 [[nodiscard]] std::string get_network_download(
   const std::filesystem::path& network_interface_path,
-  Network_state& network_state_info);
+  Network_data_stats& network_state_info);
 
 [[nodiscard]] std::string get_volume_state();
 
