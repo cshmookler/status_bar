@@ -9,6 +9,7 @@ project(
 # Project root and build directories
 root_dir = meson.project_source_root()
 build_dir = meson.project_build_root()
+src_dir = root_dir / 'src'
 
 # Insert the project version into the version header file
 conf_data = configuration_data()
@@ -34,9 +35,16 @@ dep_alsa = dependency(
 exe_status_bar = executable(
     'status_bar',
     files(
-        root_dir / 'src' / 'main.cpp',
-        root_dir / 'src' / 'version.cpp',
-        root_dir / 'src' / 'status.cpp',
+        src_dir / 'main.cpp',
+        src_dir / 'version.cpp',
+        src_dir / 'utils.cpp',
+        src_dir / 'status.cpp',
+        src_dir / 'components' / 'time.cpp',
+        src_dir / 'components' / 'memory.cpp',
+        src_dir / 'components' / 'load_average.cpp',
+        src_dir / 'components' / 'battery.cpp',
+        src_dir / 'components' / 'network.cpp',
+        src_dir / 'components' / 'sound.cpp',
     ),
     dependencies : [ dep_x11, dep_alsa ],
     install : true,

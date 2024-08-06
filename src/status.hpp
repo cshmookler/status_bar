@@ -9,7 +9,6 @@
 
 // Standard includes
 #include <array>
-#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
@@ -21,58 +20,29 @@
 
 // External includes
 #include <alsa/asoundlib.h>
+#include <sys/sysinfo.h>
 
 // Local includes
 #include "constants.hpp"
+#include "utils.hpp"
 
 namespace sbar {
 
-template<typename... Args>
-[[nodiscard]] std::string sprintf(const char* format, Args... args) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
-    int size = std::snprintf(nullptr, 0, format, args...);
-    std::string buffer(size, '\0');
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
-    if (std::sprintf(buffer.data(), format, args...) < 0) {
-        return error_str;
-    }
-    return buffer;
-}
-
-class Stopwatch {
-    using System_clock = std::chrono::system_clock;
-    using Time_point = System_clock::time_point;
-    using Duration = System_clock::duration;
-
-    std::string_view name_;
-    Time_point start_;
-
-  public:
-    explicit Stopwatch(const std::string_view& name) : name_(name) {
-        std::cout << this->name_ << " start\n";
-        this->start_ = System_clock::now();
-    }
-
-    void reset() {
-        Duration elapsed = System_clock::now() - this->start_;
-        std::cout << this->name_ << " reset: " << std::setw(5)
-                  << std::chrono::duration_cast<std::chrono::microseconds>(
-                       elapsed)
-                       .count()
-                  << " us\n";
-        this->start_ = System_clock::now();
-    }
-};
-
 [[nodiscard]] std::string get_time();
 
-[[nodiscard]] std::string get_uptime();
+using System = struct sysinfo;
+
+class Optional_system : public Optional_construction<System> {
+    [[nodiscard]] std::optional<System> constructor_() override;
+};
+
+[[nodiscard]] std::string get_uptime(const System& system);
 
 [[nodiscard]] std::string get_disk_percent();
 
-[[nodiscard]] std::string get_memory_percent();
+[[nodiscard]] std::string get_memory_percent(const System& system);
 
-[[nodiscard]] std::string get_swap_percent();
+[[nodiscard]] std::string get_swap_percent(const System& system);
 
 struct Cpu_state {
     // clang-format off
@@ -110,22 +80,23 @@ struct Cpu_state {
 
 [[nodiscard]] std::string get_cpu_temperature();
 
-[[nodiscard]] std::string get_one_minute_load_average();
+[[nodiscard]] std::string get_one_minute_load_average(const System& system);
 
-[[nodiscard]] std::string get_five_minute_load_average();
+[[nodiscard]] std::string get_five_minute_load_average(const System& system);
 
-[[nodiscard]] std::string get_fifteen_minute_load_average();
+[[nodiscard]] std::string get_fifteen_minute_load_average(const System& system);
 
-[[nodiscard]] std::optional<std::filesystem::path> get_battery();
+using Battery = std::filesystem::path;
 
-[[nodiscard]] std::string get_battery_status(
-  const std::filesystem::path& battery_path);
+class Optional_battery : public Optional_construction<Battery> {
+    [[nodiscard]] std::optional<Battery> constructor_() override;
+};
 
-[[nodiscard]] std::string get_battery_device(
-  const std::filesystem::path& battery_path);
+[[nodiscard]] std::string get_battery_status(const Battery& battery_path);
 
-[[nodiscard]] std::string get_battery_percent(
-  const std::filesystem::path& battery_path);
+[[nodiscard]] std::string get_battery_device(const Battery& battery_path);
+
+[[nodiscard]] std::string get_battery_percent(const Battery& battery_path);
 
 struct Battery_state {
     static const size_t sample_size = 60;
@@ -134,7 +105,7 @@ struct Battery_state {
     std::list<size_t> energy_remaining_;
 
   public:
-    [[nodiscard]] bool add_sample(const std::filesystem::path& battery_path);
+    [[nodiscard]] bool add_sample(const Battery& battery);
 
     [[nodiscard]] bool has_enough_samples() const;
 
@@ -142,23 +113,30 @@ struct Battery_state {
 };
 
 [[nodiscard]] std::string get_battery_time_remaining(
-  const std::filesystem::path& battery_path, Battery_state& battery_state_info);
+  const Battery& battery, Battery_state& battery_state_info);
 
-[[nodiscard]] std::string get_backlight_percent();
+using Backlight = std::filesystem::path;
 
-[[nodiscard]] std::optional<std::filesystem::path> get_network();
+class Optional_backlight : public Optional_construction<Backlight> {
+    [[nodiscard]] std::optional<Backlight> constructor_() override;
+};
 
-[[nodiscard]] std::string get_network_status(
-  const std::filesystem::path& network_interface_path);
+[[nodiscard]] std::string get_backlight_percent(const Backlight& backlight);
 
-[[nodiscard]] std::string get_network_device(
-  const std::filesystem::path& network_interface_path);
+using Network = std::filesystem::path;
 
-[[nodiscard]] std::string get_network_ssid(
-  const std::filesystem::path& network_interface_path);
+class Optional_network : public Optional_construction<Network> {
+    [[nodiscard]] std::optional<Network> constructor_() override;
+};
+
+[[nodiscard]] std::string get_network_status(const Network& network);
+
+[[nodiscard]] std::string get_network_device(const Network& network);
+
+[[nodiscard]] std::string get_network_ssid(const Network& network);
 
 [[nodiscard]] std::string get_network_signal_strength_percent(
-  const std::filesystem::path& network_interface_path);
+  const Network& network);
 
 struct Network_data_stats {
   private:
@@ -172,12 +150,10 @@ struct Network_data_stats {
 };
 
 [[nodiscard]] std::string get_network_upload(
-  const std::filesystem::path& network_interface_path,
-  Network_data_stats& network_state_info);
+  const Network& network, Network_data_stats& network_state_info);
 
 [[nodiscard]] std::string get_network_download(
-  const std::filesystem::path& network_interface_path,
-  Network_data_stats& network_state_info);
+  const Network& network, Network_data_stats& network_state_info);
 
 class Sound_mixer {
     static constexpr const char* default_card = "default";
@@ -351,13 +327,19 @@ class Sound_mixer {
     }
 
     Sound_mixer(const Sound_mixer&) = delete;
-    Sound_mixer(Sound_mixer&&) noexcept = default;
+    Sound_mixer(Sound_mixer&& sound_mixer) noexcept
+    : mixer_(sound_mixer.mixer_), good_(sound_mixer.good_) {
+        sound_mixer.mixer_ = nullptr;
+        sound_mixer.good_ = false;
+    }
     Sound_mixer& operator=(const Sound_mixer&) = delete;
-    Sound_mixer& operator=(Sound_mixer&&) noexcept = default;
+    Sound_mixer& operator=(Sound_mixer&& sound_mixer) noexcept = default;
 
     ~Sound_mixer() {
-        snd_mixer_close(this->mixer_);
-        // do nothing if the mixer fails to close.
+        if (this->mixer_ != nullptr) {
+            snd_mixer_close(this->mixer_);
+            // do nothing if the mixer fails to close.
+        }
     }
 
     [[nodiscard]] bool good() const {
@@ -375,7 +357,6 @@ class Sound_mixer {
           snd_mixer_selem_get_playback_volume_range,
           "snd_mixer_selem_get_playback_volume",
           snd_mixer_selem_get_playback_volume,
-
           this->get_mixer_elem_(playback_name, playback_index));
     }
 
@@ -392,6 +373,10 @@ class Sound_mixer {
           snd_mixer_selem_get_capture_volume,
           this->get_mixer_elem_(capture_name, capture_index));
     }
+};
+
+class Optional_sound_mixer : public Optional_construction<Sound_mixer> {
+    [[nodiscard]] std::optional<Sound_mixer> constructor_() override;
 };
 
 [[nodiscard]] std::string get_volume_state(const Sound_mixer& mixer);

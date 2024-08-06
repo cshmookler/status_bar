@@ -35,31 +35,6 @@ void signal_handler(int signal) {
     }
 }
 
-class Stopwatch {
-    using System_clock = std::chrono::system_clock;
-    using Time_point = System_clock::time_point;
-    using Duration = System_clock::duration;
-
-    std::string_view name_;
-    Time_point start_;
-
-  public:
-    Stopwatch(const std::string_view& name) : name_(name) {
-        std::cout << this->name_ << " start\n";
-        this->start_ = System_clock::now();
-    }
-
-    void reset() {
-        Duration elapsed = System_clock::now() - this->start_;
-        std::cout << this->name_ << " reset: " << std::setw(5)
-                  << std::chrono::duration_cast<std::chrono::microseconds>(
-                       elapsed)
-                       .count()
-                  << " us\n";
-        this->start_ = System_clock::now();
-    }
-};
-
 class Root_window {
     Display* display_;
 
@@ -100,11 +75,135 @@ class Root_window {
   std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
   sbar::Battery_state& battery_state_info,
   sbar::Network_data_stats& network_data_stats,
-  const std::string& status);
+  const std::string& status) {
+    sbar::Optional_system system{};
+    sbar::Optional_battery battery{};
+    sbar::Optional_backlight backlight{};
+    sbar::Optional_network network{};
+    sbar::Optional_sound_mixer sound_mixer{};
 
-template<typename T, typename F, typename... A>
-[[nodiscard]] std::string func_or_error(
-  F function, const std::optional<T>& optional, A&... args);
+    std::string formatted_status;
+
+    bool found_escape_sequence = false;
+
+    for (char chr : status) {
+        if (! found_escape_sequence) {
+            if (chr == '/') {
+                found_escape_sequence = true;
+            } else {
+                formatted_status.push_back(chr);
+            }
+            continue;
+        }
+
+        std::string insert;
+
+        switch (chr) {
+            case '/':
+                insert = "/";
+                break;
+            case 't':
+                insert = sbar::get_time();
+                break;
+            case 'u':
+                insert = system.call(sbar::get_uptime);
+                break;
+            case 'd':
+                insert = sbar::get_disk_percent();
+                break;
+            case 's':
+                insert = system.call(sbar::get_swap_percent);
+                break;
+            case 'm':
+                insert = system.call(sbar::get_memory_percent);
+                break;
+            case 'c':
+                insert = sbar::get_cpu_percent(cpu_state_info);
+                break;
+            case 'C':
+                insert = sbar::get_cpu_temperature();
+                break;
+            case '1':
+                insert = system.call(sbar::get_one_minute_load_average);
+                break;
+            case '5':
+                insert = system.call(sbar::get_five_minute_load_average);
+                break;
+            case 'f':
+                insert = system.call(sbar::get_fifteen_minute_load_average);
+                break;
+            case 'b':
+                insert = battery.call(sbar::get_battery_status);
+                break;
+            case 'n':
+                insert = battery.call(sbar::get_battery_device);
+                break;
+            case 'B':
+                insert = battery.call(sbar::get_battery_percent);
+                break;
+            case 'T':
+                insert = battery.call(
+                  sbar::get_battery_time_remaining, battery_state_info);
+                break;
+            case 'l':
+                insert = backlight.call(sbar::get_backlight_percent);
+                break;
+            case 'S':
+                insert = network.call(sbar::get_network_status);
+                break;
+            case 'N':
+                insert = network.call(sbar::get_network_device);
+                break;
+            case 'w':
+                insert = network.call(sbar::get_network_ssid);
+                break;
+            case 'W':
+                insert =
+                  network.call(sbar::get_network_signal_strength_percent);
+                break;
+            case 'U':
+                insert =
+                  network.call(sbar::get_network_upload, network_data_stats);
+                break;
+            case 'D':
+                insert =
+                  network.call(sbar::get_network_download, network_data_stats);
+                break;
+            case 'v':
+                insert = sound_mixer.call(sbar::get_volume_state);
+                break;
+            case 'V':
+                insert = sound_mixer.call(sbar::get_volume_perc);
+                break;
+            case 'h':
+                insert = sound_mixer.call(sbar::get_capture_state);
+                break;
+            case 'H':
+                insert = sound_mixer.call(sbar::get_capture_perc);
+                break;
+            case 'e':
+                insert = sbar::get_microphone_state();
+                break;
+            case 'a':
+                insert = sbar::get_camera_state();
+                break;
+            case 'x':
+                insert = sbar::get_user();
+                break;
+            case 'k':
+                insert = sbar::get_outdated_kernel_indicator();
+                break;
+            default:
+                break;
+        }
+
+        formatted_status.append(insert);
+
+        found_escape_sequence = false;
+    }
+
+    return formatted_status;
+}
 
 int main(int argc, char** argv) {
     // Setup the argument parser
@@ -188,7 +287,7 @@ int main(int argc, char** argv) {
 
         // Set the status as the title of the root window
         if (! root.set_title(formatted_status.data())) {
-            return 2;
+            return 1;
         }
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -196,153 +295,8 @@ int main(int argc, char** argv) {
 
     // Reset the root title
     if (! root.set_title("")) {
-        return 3;
+        return 1;
     }
 
     return 0;
-}
-
-std::string format_status(std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
-  sbar::Battery_state& battery_state_info,
-  sbar::Network_data_stats& network_data_stats,
-  const std::string& status) {
-    auto battery = sbar::get_battery();
-    auto network = sbar::get_network();
-    sbar::Sound_mixer mixer{};
-
-    std::string formatted_status;
-
-    bool found_escape_sequence = false;
-
-    for (char chr : status) {
-        if (! found_escape_sequence) {
-            if (chr == '/') {
-                found_escape_sequence = true;
-            } else {
-                formatted_status.push_back(chr);
-            }
-            continue;
-        }
-
-        std::string insert;
-
-        switch (chr) {
-            case '/':
-                insert = "/";
-                break;
-            case 't':
-                insert = sbar::get_time();
-                break;
-            case 'u':
-                insert = sbar::get_uptime();
-                break;
-            case 'd':
-                insert = sbar::get_disk_percent();
-                break;
-            case 's':
-                insert = sbar::get_swap_percent();
-                break;
-            case 'm':
-                insert = sbar::get_memory_percent();
-                break;
-            case 'c':
-                insert = sbar::get_cpu_percent(cpu_state_info);
-                break;
-            case 'C':
-                insert = sbar::get_cpu_temperature();
-                break;
-            case '1':
-                insert = sbar::get_one_minute_load_average();
-                break;
-            case '5':
-                insert = sbar::get_five_minute_load_average();
-                break;
-            case 'f':
-                insert = sbar::get_fifteen_minute_load_average();
-                break;
-            case 'b':
-                insert = func_or_error(sbar::get_battery_status, battery);
-                break;
-            case 'n':
-                insert = func_or_error(sbar::get_battery_device, battery);
-                break;
-            case 'B':
-                insert = func_or_error(sbar::get_battery_percent, battery);
-                break;
-            case 'T':
-                insert = func_or_error(sbar::get_battery_time_remaining,
-                  battery,
-                  battery_state_info);
-                break;
-            case 'l':
-                insert = sbar::get_backlight_percent();
-                break;
-            case 'S':
-                insert = func_or_error(sbar::get_network_status, network);
-                break;
-            case 'N':
-                insert = func_or_error(sbar::get_network_device, network);
-                break;
-            case 'w':
-                insert = func_or_error(sbar::get_network_ssid, network);
-                break;
-            case 'W':
-                insert = func_or_error(
-                  sbar::get_network_signal_strength_percent, network);
-                break;
-            case 'U':
-                insert = func_or_error(
-                  sbar::get_network_upload, network, network_data_stats);
-                break;
-            case 'D':
-                insert = func_or_error(
-                  sbar::get_network_download, network, network_data_stats);
-                break;
-            case 'v':
-                insert = sbar::get_volume_state(mixer);
-                break;
-            case 'V':
-                insert = sbar::get_volume_perc(mixer);
-                break;
-            case 'h':
-                insert = sbar::get_capture_state(mixer);
-                break;
-            case 'H':
-                insert = sbar::get_capture_perc(mixer);
-                break;
-            case 'e':
-                insert = sbar::get_microphone_state();
-                break;
-            case 'a':
-                insert = sbar::get_camera_state();
-                break;
-            case 'x':
-                insert = sbar::get_user();
-                break;
-            case 'k':
-                insert = sbar::get_outdated_kernel_indicator();
-                break;
-            default:
-                break;
-        }
-
-        formatted_status.append(insert);
-
-        found_escape_sequence = false;
-    }
-
-    return formatted_status;
-}
-
-template<typename T, typename F, typename... A>
-std::string func_or_error(
-  F function, const std::optional<T>& optional, A&... args) {
-    static_assert(std::is_invocable_v<F, T, A&...>,
-      "The function must be invocable with the given optional value and "
-      "arguments");
-
-    if (optional.has_value()) {
-        return function(optional.value(), args...);
-    }
-    return sbar::error_str;
 }
