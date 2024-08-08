@@ -26,7 +26,7 @@ std::string get_time() {
 }
 
 std::string get_uptime(const System& system_info) {
-    std::time_t epoch_uptime = system_info.uptime;
+    std::time_t epoch_uptime = system_info->uptime;
     std::tm* calendar_uptime = std::gmtime(&epoch_uptime);
 
     // non-standard format

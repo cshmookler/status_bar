@@ -15,15 +15,15 @@ float get_load_average(unsigned long load) {
 }
 
 std::string get_one_minute_load_average(const System& system) {
-    return sprintf("%.1f", get_load_average(system.loads[0]));
+    return sprintf("%.1f", get_load_average(system->loads[0]));
 }
 
 std::string get_five_minute_load_average(const System& system) {
-    return sprintf("%.1f", get_load_average(system.loads[1]));
+    return sprintf("%.1f", get_load_average(system->loads[1]));
 }
 
 std::string get_fifteen_minute_load_average(const System& system) {
-    return sprintf("%.1f", get_load_average(system.loads[2]));
+    return sprintf("%.1f", get_load_average(system->loads[2]));
 }
 
 } // namespace sbar

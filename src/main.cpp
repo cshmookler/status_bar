@@ -71,16 +71,31 @@ class Root_window {
     }
 };
 
+template<typename Function, typename T, typename... Args>
+[[nodiscard]] std::string call(
+  Function function, std::optional<T>& optional, Args&... args) {
+    static_assert(std::is_invocable_v<Function, T, Args&...>,
+      "The function must be invocable with the given arguments");
+    if (! optional.has_value()) {
+        optional = T();
+    }
+    T& optional_value = optional.value();
+    if (! optional_value.good()) {
+        return sbar::error_str;
+    }
+    return function(optional_value, args...);
+}
+
 [[nodiscard]] std::string format_status(
   std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
   sbar::Battery_state& battery_state_info,
   sbar::Network_data_stats& network_data_stats,
   const std::string& status) {
-    sbar::Optional_system system{};
-    sbar::Optional_battery battery{};
-    sbar::Optional_backlight backlight{};
-    sbar::Optional_network network{};
-    sbar::Optional_sound_mixer sound_mixer{};
+    std::optional<sbar::System> system{};
+    std::optional<sbar::Battery> battery{};
+    std::optional<sbar::Backlight> backlight{};
+    std::optional<sbar::Network> network{};
+    std::optional<sbar::Sound_mixer> sound_mixer{};
 
     std::string formatted_status;
 
@@ -106,16 +121,17 @@ class Root_window {
                 insert = sbar::get_time();
                 break;
             case 'u':
-                insert = system.call(sbar::get_uptime);
+                // insert = sbar::get_uptime(system);
+                insert = call(sbar::get_uptime, system);
                 break;
             case 'd':
                 insert = sbar::get_disk_percent();
                 break;
             case 's':
-                insert = system.call(sbar::get_swap_percent);
+                insert = call(sbar::get_swap_percent, system);
                 break;
             case 'm':
-                insert = system.call(sbar::get_memory_percent);
+                insert = call(sbar::get_memory_percent, system);
                 break;
             case 'c':
                 insert = sbar::get_cpu_percent(cpu_state_info);
@@ -124,68 +140,69 @@ class Root_window {
                 insert = sbar::get_cpu_temperature();
                 break;
             case '1':
-                insert = system.call(sbar::get_one_minute_load_average);
+                insert = call(sbar::get_one_minute_load_average, system);
                 break;
             case '5':
-                insert = system.call(sbar::get_five_minute_load_average);
+                insert = call(sbar::get_five_minute_load_average, system);
                 break;
             case 'f':
-                insert = system.call(sbar::get_fifteen_minute_load_average);
+                insert = call(sbar::get_fifteen_minute_load_average, system);
                 break;
             case 'b':
-                insert = battery.call(sbar::get_battery_status);
+                insert = call(sbar::get_battery_status, battery);
                 break;
             case 'n':
-                insert = battery.call(sbar::get_battery_device);
+                insert = call(sbar::get_battery_device, battery);
                 break;
             case 'B':
-                insert = battery.call(sbar::get_battery_percent);
+                insert = call(sbar::get_battery_percent, battery);
                 break;
             case 'T':
-                insert = battery.call(
-                  sbar::get_battery_time_remaining, battery_state_info);
+                insert = call(sbar::get_battery_time_remaining,
+                  battery,
+                  battery_state_info);
                 break;
             case 'l':
-                insert = backlight.call(sbar::get_backlight_percent);
+                insert = call(sbar::get_backlight_percent, backlight);
                 break;
             case 'S':
-                insert = network.call(sbar::get_network_status);
+                insert = call(sbar::get_network_status, network);
                 break;
             case 'N':
-                insert = network.call(sbar::get_network_device);
+                insert = call(sbar::get_network_device, network);
                 break;
             case 'w':
-                insert = network.call(sbar::get_network_ssid);
+                insert = call(sbar::get_network_ssid, network);
                 break;
             case 'W':
                 insert =
-                  network.call(sbar::get_network_signal_strength_percent);
+                  call(sbar::get_network_signal_strength_percent, network);
                 break;
             case 'U':
                 insert =
-                  network.call(sbar::get_network_upload, network_data_stats);
+                  call(sbar::get_network_upload, network, network_data_stats);
                 break;
             case 'D':
                 insert =
-                  network.call(sbar::get_network_download, network_data_stats);
+                  call(sbar::get_network_download, network, network_data_stats);
                 break;
             case 'v':
-                insert = sound_mixer.call(sbar::get_volume_state);
+                insert = call(sbar::get_volume_status, sound_mixer);
                 break;
             case 'V':
-                insert = sound_mixer.call(sbar::get_volume_perc);
+                insert = call(sbar::get_volume_perc, sound_mixer);
                 break;
             case 'h':
-                insert = sound_mixer.call(sbar::get_capture_state);
+                insert = call(sbar::get_capture_status, sound_mixer);
                 break;
             case 'H':
-                insert = sound_mixer.call(sbar::get_capture_perc);
+                insert = call(sbar::get_capture_perc, sound_mixer);
                 break;
             case 'e':
-                insert = sbar::get_microphone_state();
+                insert = sbar::get_microphone_status();
                 break;
             case 'a':
-                insert = sbar::get_camera_state();
+                insert = sbar::get_camera_status();
                 break;
             case 'x':
                 insert = sbar::get_user();

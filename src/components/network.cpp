@@ -12,7 +12,7 @@
 
 namespace sbar {
 
-std::optional<Network> Optional_network::constructor_() {
+Network::Network() {
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -42,10 +42,10 @@ std::optional<Network> Optional_network::constructor_() {
             continue;
         }
 
-        return device.path();
+        this->path_ = device.path();
+        this->good_ = true;
+        return;
     }
-
-    return std::nullopt;
 }
 
 enum class Network_state : size_t {
@@ -67,7 +67,7 @@ Network_state get_network_state(const Network& network) {
     const char* const network_operstate_down = "down";
 
     std::string operstate =
-      get_first_line(network / network_operstate_filename);
+      get_first_line(network.path() / network_operstate_filename);
     if (operstate == sbar::null_str) {
         return Network_state::error;
     }
@@ -101,7 +101,7 @@ std::string get_network_status(const Network& network) {
 }
 
 std::string get_network_device(const Network& network) {
-    return network.stem();
+    return network->stem();
 }
 
 template<typename... Request_t>
@@ -162,7 +162,7 @@ std::string get_network_ssid(const Network& network) {
 
     iwreq iwreq_info{};
 
-    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name, network.stem().string().data());
+    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name, network->stem().string().data());
 
     // This array must be 1 unit larger than the maximum ESSID size and default
     // initialized so that the ESSID is null-terminated.
@@ -196,7 +196,7 @@ std::string get_network_signal_strength_percent(const Network& network) {
     iwreq_info.u.data.pointer = &iw_statistics_info;
     iwreq_info.u.data.length = sizeof(iw_statistics_info);
 
-    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name, network.stem().string().data());
+    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name, network->stem().string().data());
 
     if (! socket.request(SIOCGIWSTATS, iwreq_info)) {
         return sbar::error_str;
@@ -218,8 +218,8 @@ std::string get_network_upload(
     const char* const network_statistics_path = "statistics/";
     const char* const network_statistics_tx_bytes_filename = "tx_bytes";
 
-    std::string upload_bytes = get_first_line(
-      network / network_statistics_path / network_statistics_tx_bytes_filename);
+    std::string upload_bytes = get_first_line(network.path()
+      / network_statistics_path / network_statistics_tx_bytes_filename);
     if (upload_bytes == sbar::null_str) {
         return sbar::error_str;
     }
@@ -244,8 +244,8 @@ std::string get_network_download(
     const char* const network_statistics_path = "statistics/";
     const char* const network_statistics_rx_bytes_filename = "rx_bytes";
 
-    std::string download_bytes = get_first_line(
-      network / network_statistics_path / network_statistics_rx_bytes_filename);
+    std::string download_bytes = get_first_line(network.path()
+      / network_statistics_path / network_statistics_rx_bytes_filename);
     if (download_bytes == sbar::null_str) {
         return sbar::error_str;
     }

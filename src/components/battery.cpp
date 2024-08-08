@@ -3,7 +3,7 @@
 
 namespace sbar {
 
-std::optional<Battery> Optional_battery::constructor_() {
+Battery::Battery() {
     // documentation for /sys/class/power_supply/:
     // https://github.com/torvalds/linux/blob/master/include/linux/power_supply.h
     // https://www.kernel.org/doc/html/latest/power/power_supply_class.html
@@ -34,10 +34,10 @@ std::optional<Battery> Optional_battery::constructor_() {
             continue;
         }
 
-        return device.path();
+        this->path_ = device.path();
+        this->good_ = true;
+        return;
     }
-
-    return std::nullopt;
 }
 
 std::string get_battery_status(const Battery& battery) {
@@ -56,7 +56,8 @@ std::string get_battery_status(const Battery& battery) {
     const int low_battery_percent = 40;
     const int very_low_battery_percent = 20;
 
-    std::string status = get_first_line(battery / battery_status_filename);
+    std::string status =
+      get_first_line(battery.path() / battery_status_filename);
 
     if (status == battery_status_full || status == battery_status_charging) {
         return "🟢";
@@ -88,7 +89,7 @@ std::string get_battery_status(const Battery& battery) {
 }
 
 std::string get_battery_device(const Battery& battery) {
-    return battery.stem();
+    return battery->stem();
 }
 
 std::string get_battery_percent(const Battery& battery) {
@@ -98,7 +99,8 @@ std::string get_battery_percent(const Battery& battery) {
 
     const char* const battery_capacity_filename = "capacity";
 
-    std::string capacity = get_first_line(battery / battery_capacity_filename);
+    std::string capacity =
+      get_first_line(battery.path() / battery_capacity_filename);
     if (capacity == sbar::null_str) {
         return sbar::error_str;
     }

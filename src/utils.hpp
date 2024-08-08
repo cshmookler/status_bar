@@ -11,7 +11,6 @@
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
-#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -121,63 +120,6 @@ template<size_t count>
     }
     return integer_fields;
 }
-
-/**
- * @brief Attempts to construct an instance of a given type with a custom
- * constructor when the construct() method is called.
- *
- * @tparam T - The type to construct an instance of.
- * @tparam constructor - The custom constructor for the given type.
- */
-template<typename T>
-class Optional_construction {
-    std::optional<T> optional_value_ = std::nullopt;
-    bool construction_attempted_ = false;
-
-  protected:
-    [[nodiscard]] virtual std::optional<T> constructor_() = 0;
-
-  public:
-    Optional_construction() = default;
-    Optional_construction(const Optional_construction&) = delete;
-    Optional_construction(Optional_construction&&) = default;
-    Optional_construction& operator=(const Optional_construction&) = delete;
-    Optional_construction& operator=(Optional_construction&&) = default;
-    virtual ~Optional_construction() = default;
-
-    bool construct() {
-        if (this->optional_value_.has_value()) {
-            return true;
-        }
-        if (construction_attempted_) {
-            return false;
-        }
-
-        this->construction_attempted_ = true;
-        // std::cout << "hgot here 2" << std::endl;
-        std::optional<T> new_optional_value = this->constructor_();
-        this->optional_value_ = std::move(new_optional_value);
-        // std::cout << "hgot here 7" << std::endl;
-        return this->optional_value_.has_value();
-    }
-
-    T& value() {
-        return this->optional_value_.value();
-    }
-
-    template<typename Function, typename... Args>
-    std::string call(Function function, Args&... args) {
-        static_assert(std::is_invocable_v<Function, T, Args&...>,
-          "The function must be invocable with the given arguments");
-        // std::cout << "hgot here 1" << std::endl;
-        if (! this->construct()) {
-            // std::cout << "hgot here 8" << std::endl;
-            return sbar::error_str;
-        }
-        // std::cout << "hgot here 9" << std::endl;
-        return function(this->optional_value_.value(), args...);
-    }
-};
 
 /**
  * @brief Used for timing sections of code.

@@ -8,7 +8,6 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -27,14 +26,6 @@
 #include "status.hpp"
 
 namespace sbar {
-
-std::optional<System> Optional_system::constructor_() {
-    System system{};
-    if (sysinfo(&system) != 0) {
-        return {};
-    }
-    return { system };
-}
 
 bool Cpu_state::update() {
     const char* const proc_stat_path = "/proc/stat";
@@ -176,7 +167,7 @@ bool Battery_state::add_sample(const Battery& battery) {
     const char* const battery_energy_now_filename = "energy_now";
 
     std::string energy_now =
-      get_first_line(battery / battery_energy_now_filename);
+      get_first_line(battery.path() / battery_energy_now_filename);
     if (energy_now == sbar::null_str) {
         return false;
     }
@@ -218,7 +209,7 @@ std::string Battery_state::get_time_remaining() const {
     return sprintf("%.2i:%.2i", hours_until_empty, minutes_until_empty);
 }
 
-std::optional<Backlight> Optional_backlight::constructor_() {
+Backlight::Backlight() {
     // documentation for /sys/class/backlight/:
     // https://github.com/torvalds/linux/blob/master/include/linux/backlight.h
     // https://docs.kernel.org/gpu/backlight.html
@@ -238,10 +229,10 @@ std::optional<Backlight> Optional_backlight::constructor_() {
             continue;
         }
 
-        return device.path();
+        this->path_ = device.path();
+        this->good_ = true;
+        return;
     }
-
-    return std::nullopt;
 }
 
 std::string get_backlight_percent(const Backlight& backlight) {
@@ -253,13 +244,13 @@ std::string get_backlight_percent(const Backlight& backlight) {
     const char* const battery_max_brightness_filename = "max_brightness";
 
     std::string brightness =
-      get_first_line(backlight / battery_brightness_filename);
+      get_first_line(backlight.path() / battery_brightness_filename);
     if (brightness == sbar::null_str) {
         return sbar::error_str;
     }
 
     std::string max_brightness =
-      get_first_line(backlight / battery_max_brightness_filename);
+      get_first_line(backlight.path() / battery_max_brightness_filename);
     if (max_brightness == sbar::null_str) {
         return sbar::error_str;
     }
@@ -282,7 +273,7 @@ size_t Network_data_stats::get_download_byte_difference(
     return difference;
 }
 
-std::string get_microphone_state() {
+std::string get_microphone_status() {
     const char* const asound_path = "/proc/asound/";
     const char* const card_prefix = "card";
     const char* const device_prefix = "pcm";
@@ -372,7 +363,7 @@ std::string get_microphone_state() {
 //     }
 // };
 
-std::string get_camera_state() {
+std::string get_camera_status() {
     // readonly_file file{ "/dev/video0" };
 
     // struct v4l2_capability capabilities {};

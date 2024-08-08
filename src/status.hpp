@@ -30,10 +30,25 @@ namespace sbar {
 
 [[nodiscard]] std::string get_time();
 
-using System = struct sysinfo;
+class System {
+    struct sysinfo info_;
+    bool good_ = false;
 
-class Optional_system : public Optional_construction<System> {
-    [[nodiscard]] std::optional<System> constructor_() override;
+  public:
+    System() : info_(), good_(sysinfo(&this->info_) == 0) {
+    }
+
+    [[nodiscard]] bool good() const {
+        return this->good_;
+    }
+
+    [[nodiscard]] const struct sysinfo* info() const {
+        return &this->info_;
+    }
+
+    [[nodiscard]] const struct sysinfo* operator->() const {
+        return &this->info_;
+    }
 };
 
 [[nodiscard]] std::string get_uptime(const System& system);
@@ -86,10 +101,24 @@ struct Cpu_state {
 
 [[nodiscard]] std::string get_fifteen_minute_load_average(const System& system);
 
-using Battery = std::filesystem::path;
+class Battery {
+    std::filesystem::path path_;
+    bool good_ = false;
 
-class Optional_battery : public Optional_construction<Battery> {
-    [[nodiscard]] std::optional<Battery> constructor_() override;
+  public:
+    Battery();
+
+    [[nodiscard]] bool good() const {
+        return this->good_;
+    }
+
+    [[nodiscard]] const std::filesystem::path& path() const {
+        return this->path_;
+    }
+
+    [[nodiscard]] const std::filesystem::path* operator->() const {
+        return &this->path_;
+    }
 };
 
 [[nodiscard]] std::string get_battery_status(const Battery& battery_path);
@@ -115,18 +144,46 @@ struct Battery_state {
 [[nodiscard]] std::string get_battery_time_remaining(
   const Battery& battery, Battery_state& battery_state_info);
 
-using Backlight = std::filesystem::path;
+class Backlight {
+    std::filesystem::path path_;
+    bool good_ = false;
 
-class Optional_backlight : public Optional_construction<Backlight> {
-    [[nodiscard]] std::optional<Backlight> constructor_() override;
+  public:
+    Backlight();
+
+    [[nodiscard]] bool good() const {
+        return this->good_;
+    }
+
+    [[nodiscard]] const std::filesystem::path& path() const {
+        return this->path_;
+    }
+
+    [[nodiscard]] const std::filesystem::path* operator->() const {
+        return &this->path_;
+    }
 };
 
 [[nodiscard]] std::string get_backlight_percent(const Backlight& backlight);
 
-using Network = std::filesystem::path;
+class Network {
+    std::filesystem::path path_;
+    bool good_ = false;
 
-class Optional_network : public Optional_construction<Network> {
-    [[nodiscard]] std::optional<Network> constructor_() override;
+  public:
+    Network();
+
+    [[nodiscard]] bool good() const {
+        return this->good_;
+    }
+
+    [[nodiscard]] const std::filesystem::path& path() const {
+        return this->path_;
+    }
+
+    [[nodiscard]] const std::filesystem::path* operator->() const {
+        return &this->path_;
+    }
 };
 
 [[nodiscard]] std::string get_network_status(const Network& network);
@@ -199,7 +256,7 @@ class Sound_mixer {
     }
 
     template<typename F>
-    [[nodiscard]] static std::string get_state_(
+    [[nodiscard]] static std::string get_status_(
       const char* switch_function_name,
       F switch_function,
       snd_mixer_elem_t* mixer_elem) {
@@ -346,8 +403,8 @@ class Sound_mixer {
         return this->good_;
     }
 
-    [[nodiscard]] std::string get_playback_state() const {
-        return get_state_("snd_mixer_selem_get_playback_switch",
+    [[nodiscard]] std::string get_playback_status() const {
+        return get_status_("snd_mixer_selem_get_playback_switch",
           snd_mixer_selem_get_playback_switch,
           this->get_mixer_elem_(playback_name, playback_index));
     }
@@ -360,8 +417,8 @@ class Sound_mixer {
           this->get_mixer_elem_(playback_name, playback_index));
     }
 
-    [[nodiscard]] std::string get_capture_state() const {
-        return get_state_("snd_mixer_selem_get_capture_switch",
+    [[nodiscard]] std::string get_capture_status() const {
+        return get_status_("snd_mixer_selem_get_capture_switch",
           snd_mixer_selem_get_capture_switch,
           this->get_mixer_elem_(capture_name, capture_index));
     }
@@ -375,21 +432,17 @@ class Sound_mixer {
     }
 };
 
-class Optional_sound_mixer : public Optional_construction<Sound_mixer> {
-    [[nodiscard]] std::optional<Sound_mixer> constructor_() override;
-};
-
-[[nodiscard]] std::string get_volume_state(const Sound_mixer& mixer);
+[[nodiscard]] std::string get_volume_status(const Sound_mixer& mixer);
 
 [[nodiscard]] std::string get_volume_perc(const Sound_mixer& mixer);
 
-[[nodiscard]] std::string get_capture_state(const Sound_mixer& mixer);
+[[nodiscard]] std::string get_capture_status(const Sound_mixer& mixer);
 
 [[nodiscard]] std::string get_capture_perc(const Sound_mixer& mixer);
 
-[[nodiscard]] std::string get_microphone_state();
+[[nodiscard]] std::string get_microphone_status();
 
-[[nodiscard]] std::string get_camera_state();
+[[nodiscard]] std::string get_camera_status();
 
 [[nodiscard]] std::string get_user();
 
