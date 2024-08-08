@@ -60,12 +60,29 @@ if dep_gtest_main.found()
     test_version = executable(
         'version',
         files(
-            'src' / 'version.test.cpp',
-            'src' / 'version.cpp',
+            src_dir / 'version.test.cpp',
+            src_dir / 'version.cpp',
         ),
         dependencies : dep_gtest_main,
     )
     test('version', test_version)
+
+    test_status = executable(
+        'status',
+        files(
+            src_dir / 'status.test.cpp',
+            src_dir / 'utils.cpp',
+            src_dir / 'status.cpp',
+            src_dir / 'components' / 'time.cpp',
+            src_dir / 'components' / 'memory.cpp',
+            src_dir / 'components' / 'load_average.cpp',
+            src_dir / 'components' / 'battery.cpp',
+            src_dir / 'components' / 'network.cpp',
+            src_dir / 'components' / 'sound.cpp',
+        ),
+        dependencies : [dep_gtest_main, dep_alsa],
+    )
+    test('status', test_status)
 else
     warning('Skipping tests due to missing dependencies')
 endif
