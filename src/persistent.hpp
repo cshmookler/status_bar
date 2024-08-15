@@ -9,6 +9,7 @@
 
 // Standard includes
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>

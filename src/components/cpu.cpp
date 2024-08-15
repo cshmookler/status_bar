@@ -13,9 +13,12 @@ bool Cpu::update_stat() {
     const char* const proc_stat_path = "/proc/stat";
     const char* const proc_stat_cpu_field = "cpu ";
 
-    std::ifstream proc_stat{ proc_stat_path };
+    std::string first_line;
+    {
+        std::ifstream proc_stat{ proc_stat_path };
+        first_line = get_first_line(proc_stat_path) + ' ';
+    }
 
-    std::string first_line = get_first_line(proc_stat_path) + ' ';
     auto first_line_c_str =
       std::string_view{ first_line.data(), first_line.size() };
 

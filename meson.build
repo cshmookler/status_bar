@@ -11,6 +11,7 @@ root_dir = meson.project_source_root()
 build_dir = meson.project_build_root()
 src_dir = root_dir / 'src'
 tests_dir = root_dir / 'tests'
+include_dir = root_dir / 'include'
 
 # Insert the project version into the version header file
 conf_data = configuration_data()
@@ -56,6 +57,16 @@ exe_status_bar = executable(
     dependencies : [ dep_x11, dep_alsa ],
     install : true,
 )
+
+lib_notify = shared_library(
+    'notify',
+    files(
+        src_dir / 'notify.cpp',
+    ),
+    version : meson.project_version(),
+    install : true,
+)
+install_headers(files(include_dir / 'notify.hpp'), subdir : 'include')
 
 dep_gtest_main = dependency(
     'gtest_main',

@@ -29,8 +29,8 @@ std::optional<field> get_notification() {
     std::fstream file{ notify_path, std::ios_base::in | std::ios_base::ate };
     std::string fields_str(file.tellg(), '\0');
     file.seekg(0);
-    file.read(fields_str.data(), fields_str.size());
-    file.close();
+    file.read(
+      fields_str.data(), static_cast<std::streamsize>(fields_str.size()));
 
     try {
         return { static_cast<field>(std::stoull(fields_str, 0, 2)) };
