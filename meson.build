@@ -59,14 +59,20 @@ exe_status_bar = executable(
 )
 
 lib_notify = shared_library(
-    'notify',
+    'status_bar_notify',
     files(
         src_dir / 'notify.cpp',
     ),
     version : meson.project_version(),
     install : true,
 )
-install_headers(files(include_dir / 'notify.hpp'), subdir : 'include')
+install_headers(
+    files(
+        include_dir / 'notify.hpp',
+        build_dir / 'version.hpp',
+    ),
+    subdir : 'status_bar'
+)
 
 dep_gtest_main = dependency(
     'gtest_main',
