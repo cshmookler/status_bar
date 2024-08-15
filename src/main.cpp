@@ -1,19 +1,20 @@
 // Standard includes
 #include <chrono>
 #include <csignal>
+#include <cstring>
 #include <iostream>
-#include <memory>
 #include <string>
-#include <thread>
 
 // External includes
 #include <X11/Xlib.h>
 #include <argparse/argparse.hpp>
 #include <sys/inotify.h>
+#include <sys/select.h>
 #include <type_traits>
+#include <unistd.h>
 
 // Local includes
-#include "constants.hpp"
+#include "watcher.hpp"
 #include "status.hpp"
 #include "version.hpp"
 
@@ -71,32 +72,31 @@ class Root_window {
     }
 };
 
-template<typename Function, typename T, typename... Args>
-[[nodiscard]] std::string call(
-  Function function, std::optional<T>& optional, Args&... args) {
-    static_assert(std::is_invocable_v<Function, T, Args&...>,
+template<typename Function, typename... Args>
+[[nodiscard]] std::string get_field_or_call(
+  std::array<std::string, sbar::field_count>& fields,
+  sbar::field fields_to_update,
+  sbar::field this_field,
+  Function function,
+  Args&... args) {
+    static_assert(std::is_invocable_v<Function, Args&...>,
       "The function must be invocable with the given arguments");
-    if (! optional.has_value()) {
-        optional = T();
+    size_t field_index = sbar::index(static_cast<size_t>(this_field));
+    if ((fields_to_update & this_field) != sbar::field_none) {
+        fields.at(field_index) = function(args...);
     }
-    T& optional_value = optional.value();
-    if (! optional_value.good()) {
-        return sbar::error_str;
-    }
-    return function(optional_value, args...);
+    return fields.at(field_index);
 }
 
-[[nodiscard]] std::string format_status(
-  std::unique_ptr<sbar::Cpu_state>& cpu_state_info,
-  sbar::Battery_state& battery_state_info,
-  sbar::Network_data_stats& network_data_stats,
-  const std::string& status) {
-    std::optional<sbar::System> system{};
-    std::optional<sbar::Battery> battery{};
-    std::optional<sbar::Backlight> backlight{};
-    std::optional<sbar::Network> network{};
-    std::optional<sbar::Sound_mixer> sound_mixer{};
-
+[[nodiscard]] std::string format_status(const std::string& status,
+  std::array<std::string, sbar::field_count>& fields,
+  sbar::field fields_to_update,
+  sbar::System& system,
+  sbar::Cpu& cpu,
+  sbar::Battery& battery,
+  sbar::Backlight& backlight,
+  sbar::Network& network,
+  sbar::Sound_mixer& sound_mixer) {
     std::string formatted_status;
 
     bool found_escape_sequence = false;
@@ -118,97 +118,196 @@ template<typename Function, typename T, typename... Args>
                 insert = "/";
                 break;
             case 't':
-                insert = sbar::get_time();
+                insert = get_field_or_call(
+                  fields, fields_to_update, sbar::field::time, sbar::get_time);
                 break;
             case 'u':
-                // insert = sbar::get_uptime(system);
-                insert = call(sbar::get_uptime, system);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::uptime,
+                  sbar::get_uptime,
+                  system);
                 break;
             case 'd':
-                insert = sbar::get_disk_percent();
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::disk,
+                  sbar::get_disk_percent);
                 break;
             case 's':
-                insert = call(sbar::get_swap_percent, system);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::swap,
+                  sbar::get_swap_percent,
+                  system);
                 break;
             case 'm':
-                insert = call(sbar::get_memory_percent, system);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::memory,
+                  sbar::get_memory_percent,
+                  system);
                 break;
             case 'c':
-                insert = sbar::get_cpu_percent(cpu_state_info);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::cpu,
+                  sbar::get_cpu_percent,
+                  cpu);
                 break;
             case 'C':
-                insert = sbar::get_cpu_temperature();
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::cpu_temp,
+                  sbar::get_cpu_temperature);
                 break;
             case '1':
-                insert = call(sbar::get_one_minute_load_average, system);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::load_1,
+                  sbar::get_one_minute_load_average,
+                  system);
                 break;
             case '5':
-                insert = call(sbar::get_five_minute_load_average, system);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::load_5,
+                  sbar::get_five_minute_load_average,
+                  system);
                 break;
             case 'f':
-                insert = call(sbar::get_fifteen_minute_load_average, system);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::load_15,
+                  sbar::get_fifteen_minute_load_average,
+                  system);
                 break;
             case 'b':
-                insert = call(sbar::get_battery_status, battery);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::battery_status,
+                  sbar::get_battery_status,
+                  battery);
                 break;
             case 'n':
-                insert = call(sbar::get_battery_device, battery);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::battery_device,
+                  sbar::get_battery_device,
+                  battery);
                 break;
             case 'B':
-                insert = call(sbar::get_battery_percent, battery);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::battery,
+                  sbar::get_battery_percent,
+                  battery);
                 break;
             case 'T':
-                insert = call(sbar::get_battery_time_remaining,
-                  battery,
-                  battery_state_info);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::battery_time,
+                  sbar::get_battery_time_remaining,
+                  battery);
                 break;
             case 'l':
-                insert = call(sbar::get_backlight_percent, backlight);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::backlight,
+                  sbar::get_backlight_percent,
+                  backlight);
                 break;
             case 'S':
-                insert = call(sbar::get_network_status, network);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::network_status,
+                  sbar::get_network_status,
+                  network);
                 break;
             case 'N':
-                insert = call(sbar::get_network_device, network);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::network_device,
+                  sbar::get_network_device,
+                  network);
                 break;
             case 'w':
-                insert = call(sbar::get_network_ssid, network);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::network_ssid,
+                  sbar::get_network_ssid,
+                  network);
                 break;
             case 'W':
-                insert =
-                  call(sbar::get_network_signal_strength_percent, network);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::network_strength,
+                  sbar::get_network_signal_strength_percent,
+                  network);
                 break;
             case 'U':
-                insert =
-                  call(sbar::get_network_upload, network, network_data_stats);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::network_upload,
+                  sbar::get_network_upload,
+                  network);
                 break;
             case 'D':
-                insert =
-                  call(sbar::get_network_download, network, network_data_stats);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::network_download,
+                  sbar::get_network_download,
+                  network);
                 break;
             case 'v':
-                insert = call(sbar::get_volume_status, sound_mixer);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::volume_status,
+                  sbar::get_volume_status,
+                  sound_mixer);
                 break;
             case 'V':
-                insert = call(sbar::get_volume_perc, sound_mixer);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::volume,
+                  sbar::get_volume_perc,
+                  sound_mixer);
                 break;
             case 'h':
-                insert = call(sbar::get_capture_status, sound_mixer);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::capture_status,
+                  sbar::get_capture_status,
+                  sound_mixer);
                 break;
             case 'H':
-                insert = call(sbar::get_capture_perc, sound_mixer);
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::capture,
+                  sbar::get_capture_perc,
+                  sound_mixer);
                 break;
             case 'e':
-                insert = sbar::get_microphone_status();
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::microphone,
+                  sbar::get_microphone_status);
                 break;
             case 'a':
-                insert = sbar::get_camera_status();
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::camera,
+                  sbar::get_camera_status);
                 break;
             case 'x':
-                insert = sbar::get_user();
+                insert = get_field_or_call(
+                  fields, fields_to_update, sbar::field::user, sbar::get_user);
                 break;
             case 'k':
-                insert = sbar::get_outdated_kernel_indicator();
+                insert = get_field_or_call(fields,
+                  fields_to_update,
+                  sbar::field::kernel_status,
+                  sbar::get_outdated_kernel_indicator);
                 break;
             default:
                 break;
@@ -219,19 +318,30 @@ template<typename Function, typename T, typename... Args>
         found_escape_sequence = false;
     }
 
+    system.reset();
+    battery.reset();
+    backlight.reset();
+    network.reset();
+    sound_mixer.reset();
+
     return formatted_status;
 }
 
 int main(int argc, char** argv) {
     // Setup the argument parser
     argparse::ArgumentParser argparser{ "status_bar",
-        sbar::get_runtime_version() };
+        sbar::get_runtime_version(),
+        argparse::default_arguments::all,
+        true };
 
-    argparser.add_argument("-p", "--path")
-      .metavar("PATH")
-      .nargs(1)
-      .help("the path to the notification file\n   ")
-      .default_value("/tmp/status_bar");
+    argparser.add_description("Status bar for dwm (https://dwm.suckless.org). "
+                              "Customizable at runtime and updates instantly.");
+
+    // argparser.add_argument("-p", "--path")
+    //   .metavar("PATH")
+    //   .nargs(1)
+    //   .help("the path to the notification file\n   ")
+    //   .default_value("/tmp/status_bar");
 
     argparser.add_argument("-s", "--status")
       .metavar("STATUS")
@@ -267,7 +377,7 @@ int main(int argc, char** argv) {
             "    /a    camera state\n"
             "    /x    user\n"
             "    /k    outdated kernel indicator\n   ")
-      .default_value(" /ac /em | /v /V%v /h /H%c | /S /N /w /W%w | /b /n /B%b "
+      .default_value(" /em | /v /V%v /h /H%c | /S /N /w /W%w | /b /n /B%b "
                      "/T /l%l | /c%c /C°C | /m%m /s%s /d%d | /t | /k /x ");
 
     // Parse arguments
@@ -294,20 +404,65 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::unique_ptr<sbar::Cpu_state> cpu_state_info{};
-    sbar::Battery_state battery_state_info{};
-    sbar::Network_data_stats network_data_stats{};
+    std::array<std::string, sbar::field_count> fields{};
+
+    sbar::System system;
+    sbar::Cpu cpu;
+    sbar::Battery battery;
+    sbar::Backlight backlight;
+    sbar::Network network;
+    sbar::Sound_mixer sound_mixer;
+
+    sbar::Inotify& inotify = sbar::Inotify::get();
+    sbar::Watcher watcher = inotify.watch(sbar::notify_path);
 
     while (! done) {
-        std::string formatted_status = format_status(
-          cpu_state_info, battery_state_info, network_data_stats, status);
+        std::string formatted_status = format_status(status,
+          fields,
+          sbar::field_all,
+          system,
+          cpu,
+          battery,
+          backlight,
+          network,
+          sound_mixer);
 
         // Set the status as the title of the root window
         if (! root.set_title(formatted_status.data())) {
             return 1;
         }
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        for (size_t i = 0; i < 20; i++) {
+            if (! inotify.has_event(std::chrono::milliseconds(50))) {
+                continue;
+            }
+            if (! watcher.modified()) {
+                continue;
+            }
+
+            std::optional<sbar::field> optional_fields =
+              sbar::get_notification();
+            if (! optional_fields.has_value()) {
+                std::cerr << "Failed to read the notification file: \""
+                          << sbar::notify_path << "\"\n";
+                continue;
+            }
+
+            std::string new_formatted_status = format_status(status,
+              fields,
+              optional_fields.value(),
+              system,
+              cpu,
+              battery,
+              backlight,
+              network,
+              sound_mixer);
+
+            // Set the status as the title of the root window
+            if (! root.set_title(new_formatted_status.data())) {
+                return 1;
+            }
+        }
     }
 
     // Reset the root title

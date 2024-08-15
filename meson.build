@@ -10,6 +10,7 @@ project(
 root_dir = meson.project_source_root()
 build_dir = meson.project_build_root()
 src_dir = root_dir / 'src'
+tests_dir = root_dir / 'tests'
 
 # Insert the project version into the version header file
 conf_data = configuration_data()
@@ -38,13 +39,19 @@ exe_status_bar = executable(
         src_dir / 'main.cpp',
         src_dir / 'version.cpp',
         src_dir / 'utils.cpp',
-        src_dir / 'status.cpp',
+        src_dir / 'notify.cpp',
         src_dir / 'components' / 'time.cpp',
         src_dir / 'components' / 'memory.cpp',
+        src_dir / 'components' / 'cpu.cpp',
         src_dir / 'components' / 'load_average.cpp',
         src_dir / 'components' / 'battery.cpp',
+        src_dir / 'components' / 'backlight.cpp',
         src_dir / 'components' / 'network.cpp',
         src_dir / 'components' / 'sound.cpp',
+        src_dir / 'components' / 'microphone.cpp',
+        src_dir / 'components' / 'camera.cpp',
+        src_dir / 'components' / 'user.cpp',
+        src_dir / 'components' / 'kernel_status.cpp',
     ),
     dependencies : [ dep_x11, dep_alsa ],
     install : true,
@@ -60,7 +67,7 @@ if dep_gtest_main.found()
     test_version = executable(
         'version',
         files(
-            src_dir / 'version.test.cpp',
+            tests_dir / 'version_test.cpp',
             src_dir / 'version.cpp',
         ),
         dependencies : dep_gtest_main,
@@ -70,19 +77,33 @@ if dep_gtest_main.found()
     test_status = executable(
         'status',
         files(
-            src_dir / 'status.test.cpp',
+            tests_dir / 'status_test.cpp',
             src_dir / 'utils.cpp',
-            src_dir / 'status.cpp',
             src_dir / 'components' / 'time.cpp',
             src_dir / 'components' / 'memory.cpp',
+            src_dir / 'components' / 'cpu.cpp',
             src_dir / 'components' / 'load_average.cpp',
             src_dir / 'components' / 'battery.cpp',
+            src_dir / 'components' / 'backlight.cpp',
             src_dir / 'components' / 'network.cpp',
             src_dir / 'components' / 'sound.cpp',
+            src_dir / 'components' / 'microphone.cpp',
+            src_dir / 'components' / 'camera.cpp',
+            src_dir / 'components' / 'user.cpp',
+            src_dir / 'components' / 'kernel_status.cpp',
         ),
         dependencies : [dep_gtest_main, dep_alsa],
     )
     test('status', test_status)
+
+    test_notify = executable(
+        'notify',
+        files(
+            tests_dir / 'notify_test.cpp',
+        ),
+        dependencies : [dep_gtest_main],
+    )
+    test('notify', test_notify)
 else
     warning('Skipping tests due to missing dependencies')
 endif

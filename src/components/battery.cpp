@@ -3,7 +3,7 @@
 
 namespace sbar {
 
-Battery::Battery() {
+bool Battery::init() {
     // documentation for /sys/class/power_supply/:
     // https://github.com/torvalds/linux/blob/master/include/linux/power_supply.h
     // https://www.kernel.org/doc/html/latest/power/power_supply_class.html
@@ -36,11 +36,68 @@ Battery::Battery() {
 
         this->path_ = device.path();
         this->good_ = true;
-        return;
+        return true;
     }
+
+    this->good_ = false;
+    return false;
 }
 
-std::string get_battery_status(const Battery& battery) {
+bool Battery::add_sample() {
+    // documentation for /sys/class/power_supply/:
+    // https://github.com/torvalds/linux/blob/master/include/linux/power_supply.h
+    // https://www.kernel.org/doc/html/latest/power/power_supply_class.html
+
+    const char* const battery_energy_now_filename = "energy_now";
+
+    std::string energy_now =
+      get_first_line(this->path() / battery_energy_now_filename);
+    if (energy_now == sbar::null_str) {
+        return false;
+    }
+
+    if (this->has_enough_samples()) {
+        this->energy_remaining_.pop_front();
+    }
+
+    this->energy_remaining_.push_back(std::stoull(energy_now));
+
+    return true;
+}
+
+bool Battery::has_enough_samples() const {
+    return this->energy_remaining_.size() >= sample_size;
+}
+
+std::string Battery::get_time_remaining() const {
+    if (! this->has_enough_samples()) {
+        return sbar::standby_str;
+    }
+
+    size_t largest_sample = this->energy_remaining_.front();
+    size_t smallest_sample = this->energy_remaining_.back();
+
+    size_t difference = largest_sample - smallest_sample;
+    if (difference == 0) {
+        return sbar::error_str;
+    }
+    size_t sample_periods_until_empty = largest_sample / difference;
+    size_t seconds_until_empty = sample_periods_until_empty * sample_size;
+
+    const size_t seconds_per_minute = 60;
+    const size_t seconds_per_hour = 3600;
+
+    size_t minutes_until_empty = seconds_until_empty % seconds_per_minute;
+    size_t hours_until_empty = seconds_until_empty / seconds_per_hour;
+
+    return sprintf("%.2i:%.2i", hours_until_empty, minutes_until_empty);
+}
+
+std::string get_battery_status(Battery& battery) {
+    if (! battery.good() && ! battery.init()) {
+        return sbar::error_str;
+    }
+
     // documentation for /sys/class/power_supply/:
     // https://github.com/torvalds/linux/blob/master/include/linux/power_supply.h
     // https://www.kernel.org/doc/html/latest/power/power_supply_class.html
@@ -88,11 +145,18 @@ std::string get_battery_status(const Battery& battery) {
     return "🔵";
 }
 
-std::string get_battery_device(const Battery& battery) {
+std::string get_battery_device(Battery& battery) {
+    if (! battery.good() && ! battery.init()) {
+        return sbar::error_str;
+    }
     return battery->stem();
 }
 
-std::string get_battery_percent(const Battery& battery) {
+std::string get_battery_percent(Battery& battery) {
+    if (! battery.good() && ! battery.init()) {
+        return sbar::error_str;
+    }
+
     // documentation for /sys/class/power_supply/:
     // https://github.com/torvalds/linux/blob/master/include/linux/power_supply.h
     // https://www.kernel.org/doc/html/latest/power/power_supply_class.html
@@ -108,13 +172,11 @@ std::string get_battery_percent(const Battery& battery) {
     return capacity;
 }
 
-std::string get_battery_time_remaining(
-  const Battery& battery, Battery_state& battery_state_info) {
-    if (! battery_state_info.add_sample(battery)) {
+std::string get_battery_time_remaining(Battery& battery) {
+    if (! battery.good() && ! battery.init() && ! battery.add_sample()) {
         return sbar::error_str;
     }
-
-    return battery_state_info.get_time_remaining();
+    return battery.get_time_remaining();
 }
 
 } // namespace sbar

@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 
 // Local includes
-#include "status.hpp"
+#include "../src/status.hpp"
 
 TEST(status, time) {
     std::string time = sbar::get_time();
@@ -17,6 +17,8 @@ TEST(status, time) {
 
 TEST(status, uptime) {
     sbar::System system{};
+    ASSERT_FALSE(system.good());
+    ASSERT_TRUE(system.init());
     ASSERT_TRUE(system.good());
     std::string uptime = sbar::get_uptime(system);
     EXPECT_STRNE(uptime.data(), sbar::error_str);
@@ -29,6 +31,8 @@ TEST(status, disk) {
 
 TEST(status, memory) {
     sbar::System system{};
+    ASSERT_FALSE(system.good());
+    ASSERT_TRUE(system.init());
     ASSERT_TRUE(system.good());
     std::string memory = sbar::get_memory_percent(system);
     EXPECT_STRNE(memory.data(), sbar::error_str);
@@ -36,17 +40,19 @@ TEST(status, memory) {
 
 TEST(status, swap) {
     sbar::System system{};
+    ASSERT_FALSE(system.good());
+    ASSERT_TRUE(system.init());
     ASSERT_TRUE(system.good());
     std::string swap = sbar::get_swap_percent(system);
     EXPECT_STRNE(swap.data(), sbar::error_str);
 }
 
 TEST(status, cpu) {
-    std::unique_ptr<sbar::Cpu_state> cpu_state = nullptr;
-    std::string percent = sbar::get_cpu_percent(cpu_state);
+    sbar::Cpu cpu{};
+    std::string percent = sbar::get_cpu_percent(cpu);
     EXPECT_STREQ(percent.data(), sbar::standby_str);
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    percent = sbar::get_cpu_percent(cpu_state);
+    percent = sbar::get_cpu_percent(cpu);
     EXPECT_STRNE(percent.data(), sbar::standby_str);
     EXPECT_STRNE(percent.data(), sbar::error_str);
 }
@@ -58,6 +64,8 @@ TEST(status, cpuTemp) {
 
 TEST(status, load1) {
     sbar::System system{};
+    ASSERT_FALSE(system.good());
+    ASSERT_TRUE(system.init());
     ASSERT_TRUE(system.good());
     std::string load1 = sbar::get_one_minute_load_average(system);
     EXPECT_STRNE(load1.data(), sbar::error_str);
@@ -65,6 +73,8 @@ TEST(status, load1) {
 
 TEST(status, load5) {
     sbar::System system{};
+    ASSERT_FALSE(system.good());
+    ASSERT_TRUE(system.init());
     ASSERT_TRUE(system.good());
     std::string load5 = sbar::get_five_minute_load_average(system);
     EXPECT_STRNE(load5.data(), sbar::error_str);
@@ -72,6 +82,8 @@ TEST(status, load5) {
 
 TEST(status, load15) {
     sbar::System system{};
+    ASSERT_FALSE(system.good());
+    ASSERT_TRUE(system.init());
     ASSERT_TRUE(system.good());
     std::string load15 = sbar::get_fifteen_minute_load_average(system);
     EXPECT_STRNE(load15.data(), sbar::error_str);
@@ -79,6 +91,8 @@ TEST(status, load15) {
 
 TEST(status, batteryStatus) {
     sbar::Battery battery{};
+    ASSERT_FALSE(battery.good());
+    ASSERT_TRUE(battery.init());
     ASSERT_TRUE(battery.good());
     std::string status = sbar::get_battery_status(battery);
     EXPECT_STRNE(status.data(), sbar::error_str);
@@ -86,6 +100,8 @@ TEST(status, batteryStatus) {
 
 TEST(status, batteryDevice) {
     sbar::Battery battery{};
+    ASSERT_FALSE(battery.good());
+    ASSERT_TRUE(battery.init());
     ASSERT_TRUE(battery.good());
     std::string device = sbar::get_battery_device(battery);
     EXPECT_STRNE(device.data(), sbar::error_str);
@@ -93,6 +109,8 @@ TEST(status, batteryDevice) {
 
 TEST(status, battery) {
     sbar::Battery battery{};
+    ASSERT_FALSE(battery.good());
+    ASSERT_TRUE(battery.init());
     ASSERT_TRUE(battery.good());
     std::string percent = sbar::get_battery_percent(battery);
     EXPECT_STRNE(percent.data(), sbar::error_str);
@@ -100,15 +118,17 @@ TEST(status, battery) {
 
 TEST(status, batteryTimeRemaining) {
     sbar::Battery battery{};
+    ASSERT_FALSE(battery.good());
+    ASSERT_TRUE(battery.init());
     ASSERT_TRUE(battery.good());
-    sbar::Battery_state battery_state{};
-    std::string remaining =
-      sbar::get_battery_time_remaining(battery, battery_state);
+    std::string remaining = sbar::get_battery_time_remaining(battery);
     EXPECT_STREQ(remaining.data(), sbar::standby_str);
 }
 
 TEST(status, backlight) {
     sbar::Backlight backlight{};
+    ASSERT_FALSE(backlight.good());
+    ASSERT_TRUE(backlight.init());
     ASSERT_TRUE(backlight.good());
     std::string percent = sbar::get_backlight_percent(backlight);
     EXPECT_STRNE(percent.data(), sbar::error_str);
@@ -116,6 +136,8 @@ TEST(status, backlight) {
 
 TEST(status, networkStatus) {
     sbar::Network network{};
+    ASSERT_FALSE(network.good());
+    ASSERT_TRUE(network.init());
     ASSERT_TRUE(network.good());
     std::string status = sbar::get_network_status(network);
     EXPECT_STRNE(status.data(), sbar::error_str);
@@ -123,6 +145,8 @@ TEST(status, networkStatus) {
 
 TEST(status, networkDevice) {
     sbar::Network network{};
+    ASSERT_FALSE(network.good());
+    ASSERT_TRUE(network.init());
     ASSERT_TRUE(network.good());
     std::string device = sbar::get_network_device(network);
     EXPECT_STRNE(device.data(), sbar::error_str);
@@ -130,6 +154,8 @@ TEST(status, networkDevice) {
 
 TEST(status, networkSSID) {
     sbar::Network network{};
+    ASSERT_FALSE(network.good());
+    ASSERT_TRUE(network.init());
     ASSERT_TRUE(network.good());
     std::string ssid = sbar::get_network_ssid(network);
     EXPECT_STRNE(ssid.data(), sbar::error_str);
@@ -137,6 +163,8 @@ TEST(status, networkSSID) {
 
 TEST(status, networkStrength) {
     sbar::Network network{};
+    ASSERT_FALSE(network.good());
+    ASSERT_TRUE(network.init());
     ASSERT_TRUE(network.good());
     std::string signal = sbar::get_network_signal_strength_percent(network);
     EXPECT_STRNE(signal.data(), sbar::error_str);
@@ -144,29 +172,32 @@ TEST(status, networkStrength) {
 
 TEST(status, networkUpload) {
     sbar::Network network{};
+    ASSERT_FALSE(network.good());
+    ASSERT_TRUE(network.init());
     ASSERT_TRUE(network.good());
-    sbar::Network_data_stats network_data_stats{};
-    std::string upload = sbar::get_network_upload(network, network_data_stats);
+    std::string upload = sbar::get_network_upload(network);
     EXPECT_STREQ(upload.data(), sbar::standby_str);
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    upload = sbar::get_network_upload(network, network_data_stats);
+    upload = sbar::get_network_upload(network);
     EXPECT_STRNE(upload.data(), sbar::error_str);
 }
 
 TEST(status, networkDownload) {
     sbar::Network network{};
+    ASSERT_FALSE(network.good());
+    ASSERT_TRUE(network.init());
     ASSERT_TRUE(network.good());
-    sbar::Network_data_stats network_data_stats{};
-    std::string download =
-      sbar::get_network_download(network, network_data_stats);
+    std::string download = sbar::get_network_download(network);
     EXPECT_STREQ(download.data(), sbar::standby_str);
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    download = sbar::get_network_download(network, network_data_stats);
+    download = sbar::get_network_download(network);
     EXPECT_STRNE(download.data(), sbar::error_str);
 }
 
 TEST(status, volumeStatus) {
     sbar::Sound_mixer sound_mixer{};
+    ASSERT_FALSE(sound_mixer.good());
+    ASSERT_TRUE(sound_mixer.init());
     ASSERT_TRUE(sound_mixer.good());
     std::string status = sbar::get_volume_status(sound_mixer);
     EXPECT_STRNE(status.data(), sbar::error_str);
@@ -174,6 +205,8 @@ TEST(status, volumeStatus) {
 
 TEST(status, volume) {
     sbar::Sound_mixer sound_mixer{};
+    ASSERT_FALSE(sound_mixer.good());
+    ASSERT_TRUE(sound_mixer.init());
     ASSERT_TRUE(sound_mixer.good());
     std::string volume = sbar::get_volume_perc(sound_mixer);
     EXPECT_STRNE(volume.data(), sbar::error_str);
@@ -181,6 +214,8 @@ TEST(status, volume) {
 
 TEST(status, captureStatus) {
     sbar::Sound_mixer sound_mixer{};
+    ASSERT_FALSE(sound_mixer.good());
+    ASSERT_TRUE(sound_mixer.init());
     ASSERT_TRUE(sound_mixer.good());
     std::string status = sbar::get_capture_status(sound_mixer);
     EXPECT_STRNE(status.data(), sbar::error_str);
@@ -188,6 +223,8 @@ TEST(status, captureStatus) {
 
 TEST(status, capture) {
     sbar::Sound_mixer sound_mixer{};
+    ASSERT_FALSE(sound_mixer.good());
+    ASSERT_TRUE(sound_mixer.init());
     ASSERT_TRUE(sound_mixer.good());
     std::string capture = sbar::get_capture_perc(sound_mixer);
     EXPECT_STRNE(capture.data(), sbar::error_str);

@@ -12,7 +12,6 @@
 #include <cstdio>
 #include <filesystem>
 #include <iostream>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -81,45 +80,16 @@ template<typename... Args>
 [[nodiscard]] std::string_view split(std::string_view& str, char delimiter);
 
 /**
- * @brief Split a given string into a predefined number of segments separated by
- * a given delimiter.
+ * struct Public_constructor - Provides a public constructor for a given type.
  *
- * @tparam count - The number of segments to split the given string into.
- * @param[in] str - The string to split into segments.
- * @param[in] delimiter - The delimiter to search for (from left to right)
+ * @tparam T - The type to provide a public constructor for.
  */
-template<size_t count>
-[[nodiscard]] std::array<std::string, count> split(
-  std::string_view str, char delimiter) {
-    std::array<std::string, count> fields{};
-    for (std::string& field : fields) {
-        field = split(str, delimiter);
+template<typename T>
+struct Public_constructor : public T {
+    template<typename... Args>
+    Public_constructor(Args&&... args) : T(std::forward<Args>(args)...) {
     }
-    return fields;
-}
-
-/**
- * @brief Converts each element in the given array to an unsigned long long.
- * If an element cannot be converted, then zero (0) is recorded instead.
- *
- * @tparam count - The length of the given array.
- * @param[in] string_fields - An array of strings to convert to integers
- * (unsigned long long).
- */
-template<size_t count>
-[[nodiscard]] std::array<size_t, count> to_integers(
-  const std::array<std::string, count>& string_fields) {
-    std::array<size_t, count> integer_fields{};
-    for (size_t i = 0; i < count; i++) {
-        const std::string& string_field = string_fields[i];
-        try {
-            integer_fields[i] = std::stoull(string_field);
-        } catch (...) {
-            integer_fields[i] = 0;
-        }
-    }
-    return integer_fields;
-}
+};
 
 /**
  * @brief Used for timing sections of code.

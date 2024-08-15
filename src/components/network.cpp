@@ -12,7 +12,7 @@
 
 namespace sbar {
 
-Network::Network() {
+bool Network::init() {
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -44,18 +44,37 @@ Network::Network() {
 
         this->path_ = device.path();
         this->good_ = true;
-        return;
+        return true;
     }
+
+    this->good_ = false;
+    return false;
 }
 
-enum class Network_state : size_t {
+size_t Network::get_upload_byte_difference(size_t upload_byte_count) {
+    size_t difference = upload_byte_count - this->upload_byte_count_;
+    this->upload_byte_count_ = upload_byte_count;
+    return difference;
+}
+
+size_t Network::get_download_byte_difference(size_t download_byte_count) {
+    size_t difference = download_byte_count - this->download_byte_count_;
+    this->download_byte_count_ = download_byte_count;
+    return difference;
+}
+
+enum class network_state : size_t {
     error,
     up,
     dormant,
     down,
 };
 
-Network_state get_network_state(const Network& network) {
+network_state get_network_state(Network& network) {
+    if (! network.good() && ! network.init()) {
+        return network_state::error;
+    }
+
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -69,38 +88,45 @@ Network_state get_network_state(const Network& network) {
     std::string operstate =
       get_first_line(network.path() / network_operstate_filename);
     if (operstate == sbar::null_str) {
-        return Network_state::error;
+        return network_state::error;
     }
 
     if (operstate == network_operstate_up) {
-        return Network_state::up;
+        return network_state::up;
     }
     if (operstate == network_operstate_dormant) {
-        return Network_state::dormant;
+        return network_state::dormant;
     }
     if (operstate == network_operstate_down) {
-        return Network_state::down;
+        return network_state::down;
     }
 
-    return Network_state::error;
+    return network_state::error;
 }
 
-std::string get_network_status(const Network& network) {
+std::string get_network_status(Network& network) {
+    if (! network.good() && ! network.init()) {
+        return sbar::error_str;
+    }
+
     switch (get_network_state(network)) {
-        case Network_state::up:
+        case network_state::up:
             return "🟢";
-        case Network_state::dormant:
+        case network_state::dormant:
             return "🟡";
-        case Network_state::down:
+        case network_state::down:
             return "🔴";
-        case Network_state::error:
+        case network_state::error:
             /* fallthrough */
         default:
             return sbar::error_str;
     }
 }
 
-std::string get_network_device(const Network& network) {
+std::string get_network_device(Network& network) {
+    if (! network.good() && ! network.init()) {
+        return sbar::error_str;
+    }
     return network->stem();
 }
 
@@ -147,11 +173,15 @@ class Unix_socket {
     }
 };
 
-std::string get_network_ssid(const Network& network) {
+std::string get_network_ssid(Network& network) {
+    if (! network.good() && ! network.init()) {
+        return sbar::error_str;
+    }
+
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    if (get_network_state(network) != Network_state::up) {
+    if (get_network_state(network) != network_state::up) {
         return sbar::standby_str;
     }
 
@@ -178,11 +208,15 @@ std::string get_network_ssid(const Network& network) {
     return std::string{ essid.data() };
 }
 
-std::string get_network_signal_strength_percent(const Network& network) {
+std::string get_network_signal_strength_percent(Network& network) {
+    if (! network.good() && ! network.init()) {
+        return sbar::error_str;
+    }
+
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    if (get_network_state(network) != Network_state::up) {
+    if (get_network_state(network) != network_state::up) {
         return sbar::standby_str;
     }
 
@@ -209,8 +243,11 @@ std::string get_network_signal_strength_percent(const Network& network) {
     return sprintf("%.0f", signal_strength);
 }
 
-std::string get_network_upload(
-  const Network& network, Network_data_stats& network_state_info) {
+std::string get_network_upload(Network& network) {
+    if (! network.good() && ! network.init()) {
+        return sbar::error_str;
+    }
+
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -227,7 +264,7 @@ std::string get_network_upload(
     size_t upload_bytes_numeric = std::stoull(upload_bytes);
 
     auto upload_byte_difference =
-      network_state_info.get_upload_byte_difference(upload_bytes_numeric);
+      network.get_upload_byte_difference(upload_bytes_numeric);
     if (upload_byte_difference == upload_bytes_numeric) {
         return sbar::standby_str;
     }
@@ -235,8 +272,11 @@ std::string get_network_upload(
     return sprintf("%i", upload_byte_difference);
 }
 
-std::string get_network_download(
-  const Network& network, Network_data_stats& network_state_info) {
+std::string get_network_download(Network& network) {
+    if (! network.good() && ! network.init()) {
+        return sbar::error_str;
+    }
+
     // documentation for /sys/class/net/:
     // https://github.com/torvalds/linux/blob/master/include/linux/net.h
     // https://www.kernel.org/doc/html/latest/driver-api/input.html
@@ -253,7 +293,7 @@ std::string get_network_download(
     size_t download_bytes_numeric = std::stoull(download_bytes);
 
     auto download_byte_difference =
-      network_state_info.get_download_byte_difference(download_bytes_numeric);
+      network.get_download_byte_difference(download_bytes_numeric);
     if (download_byte_difference == download_bytes_numeric) {
         return sbar::standby_str;
     }
