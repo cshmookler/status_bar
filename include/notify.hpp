@@ -1,5 +1,26 @@
 #pragma once
 
+/*****************************************************************************/
+/*  Copyright (c) 2024 Caden Shmookler                                       */
+/*                                                                           */
+/*  This software is provided 'as-is', without any express or implied        */
+/*  warranty. In no event will the authors be held liable for any damages    */
+/*  arising from the use of this software.                                   */
+/*                                                                           */
+/*  Permission is granted to anyone to use this software for any purpose,    */
+/*  including commercial applications, and to alter it and redistribute it   */
+/*  freely, subject to the following restrictions:                           */
+/*                                                                           */
+/*  1. The origin of this software must not be misrepresented; you must not  */
+/*     claim that you wrote the original software. If you use this software  */
+/*     in a product, an acknowledgment in the product documentation would    */
+/*     be appreciated but is not required.                                   */
+/*  2. Altered source versions must be plainly marked as such, and must not  */
+/*     be misrepresented as being the original software.                     */
+/*  3. This notice may not be removed or altered from any source             */
+/*     distribution.                                                         */
+/*****************************************************************************/
+
 /**
  * @file notify.hpp
  * @author Caden Shmookler (cshmookler@gmail.com)
@@ -16,10 +37,23 @@ namespace sbar {
 
 constexpr const char* notify_path = "/tmp/status_bar";
 
+/**
+ * @brief Returns a number with a single positive bit cooresponding to the given
+ * index.
+ *
+ * @param[in] index - The index of the lone positive bit.
+ */
 [[nodiscard]] inline constexpr size_t bit(size_t index) {
     return static_cast<size_t>(1) << index;
 }
 
+/**
+ * @brief Returns the number of leading zeros before the first non-zero bit in
+ * the given number. The numerical maximum is returned if the given number is
+ * zero.
+ *
+ * @param[in] bit - The number containing at least one positive bit.
+ */
 [[nodiscard]] constexpr size_t index(size_t bit) {
     if (bit == 0) {
         return std::numeric_limits<size_t>::max();
@@ -75,7 +109,7 @@ namespace {
 constexpr size_t field_last_line = __LINE__ - 4;
 } // namespace
 // clang-format on
-//
+
 constexpr size_t field_count = field_last_line - field_first_line + 1;
 
 constexpr field field_none = static_cast<field>(0);
@@ -100,8 +134,22 @@ inline constexpr field operator&(field lhs, field rhs) {
     return operator&(lhs, static_cast<size_t>(rhs));
 }
 
-[[nodiscard]] bool notify(field fields);
+/**
+ * @brief Notifies the status bar that certain specified fields must be updated
+ * immediately.
+ *
+ * @param[in] fields - The fields to be updated.
+ * @return true if this notification was successfully dispatched and false
+ * otherwise.
+ */
+bool notify(field fields);
 
+/**
+ * @brief Retrieves the most recent status bar notification.
+ *
+ * @return the fields to be updated or std::nullopt if the notification file
+ * could not be read.
+ */
 [[nodiscard]] std::optional<field> get_notification();
 
 } // namespace sbar

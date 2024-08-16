@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 // Local includes
-#include "watcher.hpp"
+#include "../include/watcher.hpp"
 #include "status.hpp"
 #include "version.hpp"
 

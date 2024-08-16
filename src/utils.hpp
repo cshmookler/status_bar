@@ -80,18 +80,6 @@ template<typename... Args>
 [[nodiscard]] std::string_view split(std::string_view& str, char delimiter);
 
 /**
- * struct Public_constructor - Provides a public constructor for a given type.
- *
- * @tparam T - The type to provide a public constructor for.
- */
-template<typename T>
-struct Public_constructor : public T {
-    template<typename... Args>
-    Public_constructor(Args&&... args) : T(std::forward<Args>(args)...) {
-    }
-};
-
-/**
  * @brief Used for timing sections of code.
  *
  * @code{.cpp}

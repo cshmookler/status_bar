@@ -18,7 +18,7 @@ conf_data = configuration_data()
 conf_data.set('version', meson.project_version())
 configure_file(
     configuration : conf_data,
-    input : 'src' / 'version.hpp.in',
+    input : include_dir / 'version.hpp.in',
     output : 'version.hpp',
 )
 
@@ -41,6 +41,7 @@ exe_status_bar = executable(
         src_dir / 'version.cpp',
         src_dir / 'utils.cpp',
         src_dir / 'notify.cpp',
+        src_dir / 'watcher.cpp',
         src_dir / 'components' / 'time.cpp',
         src_dir / 'components' / 'memory.cpp',
         src_dir / 'components' / 'cpu.cpp',
@@ -58,6 +59,14 @@ exe_status_bar = executable(
     install : true,
 )
 
+lib_version = shared_library(
+    'status_bar_version',
+    files(
+        src_dir / 'version.cpp',
+    ),
+    version : meson.project_version(),
+    install : true,
+)
 lib_notify = shared_library(
     'status_bar_notify',
     files(
@@ -66,10 +75,20 @@ lib_notify = shared_library(
     version : meson.project_version(),
     install : true,
 )
+lib_watcher = shared_library(
+    'status_bar_watcher',
+    files(
+        src_dir / 'watcher.cpp',
+    ),
+    version : meson.project_version(),
+    install : true,
+)
+
 install_headers(
     files(
-        include_dir / 'notify.hpp',
         build_dir / 'version.hpp',
+        include_dir / 'notify.hpp',
+        include_dir / 'watcher.hpp',
     ),
     subdir : 'status_bar'
 )
