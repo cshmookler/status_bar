@@ -173,7 +173,10 @@ std::string get_battery_percent(Battery& battery) {
 }
 
 std::string get_battery_time_remaining(Battery& battery) {
-    if (! battery.good() && ! battery.init() && ! battery.add_sample()) {
+    if (! battery.good() && ! battery.init()) {
+        return sbar::error_str;
+    }
+    if (! battery.add_sample()) {
         return sbar::error_str;
     }
     return battery.get_time_remaining();

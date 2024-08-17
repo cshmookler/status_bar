@@ -90,7 +90,7 @@ install_headers(
         include_dir / 'notify.hpp',
         include_dir / 'watcher.hpp',
     ),
-    subdir : 'status_bar'
+    subdir : 'status_bar',
 )
 
 dep_gtest_main = dependency(

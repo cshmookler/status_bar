@@ -4,13 +4,13 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 // External includes
 #include <X11/Xlib.h>
 #include <argparse/argparse.hpp>
 #include <sys/inotify.h>
 #include <sys/select.h>
-#include <type_traits>
 #include <unistd.h>
 
 // Local includes
