@@ -9,7 +9,6 @@
 
 // Standard includes
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <cstdio>
 #include <filesystem>
@@ -246,7 +245,7 @@ class Sound_mixer {
 
     [[nodiscard]] static long get_percent_(long min, long max, long value) {
         double ratio =
-          static_cast<double>(value - min) / static_cast<double>(max);
+          static_cast<double>(value - min) / static_cast<double>(max - min);
         return static_cast<long>(ratio * 100.F);
     }
 
