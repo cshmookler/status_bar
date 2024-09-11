@@ -11,7 +11,7 @@
 
 namespace sbar {
 
-std::string get_disk_percent() {
+std::string Fields::get_disk_percent() {
     std::filesystem::space_info root_dir =
       std::filesystem::space(std::filesystem::current_path().root_path());
 
@@ -21,25 +21,27 @@ std::string get_disk_percent() {
     return sprintf("%.0f", (used / total) * 1e2);
 }
 
-std::string get_swap_percent(System& system) {
-    if (! system.good() && ! system.init()) {
+std::string Fields::get_swap_percent() {
+    if (! this->system.good() && ! this->system.init()) {
         return sbar::error_str;
     }
 
-    auto total = static_cast<double>(system->totalswap);
-    auto used = static_cast<double>(system->totalswap - system->freeswap);
+    auto total = static_cast<double>(this->system->totalswap);
+    auto used =
+      static_cast<double>(this->system->totalswap - this->system->freeswap);
 
     return sprintf("%.0f", (used / total) * 1e2);
 }
 
-std::string get_memory_percent(System& system) {
-    if (! system.good() && ! system.init()) {
+std::string Fields::get_memory_percent() {
+    if (! this->system.good() && ! this->system.init()) {
         return sbar::error_str;
     }
 
-    auto total = static_cast<double>(system->totalram);
-    auto used = static_cast<double>(system->totalram - system->freeram
-      - system->bufferram - system->sharedram);
+    auto total = static_cast<double>(this->system->totalram);
+    auto used =
+      static_cast<double>(this->system->totalram - this->system->freeram
+        - this->system->bufferram - this->system->sharedram);
 
     return sprintf("%.0f", (used / total) * 1e2);
 }

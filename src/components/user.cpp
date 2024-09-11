@@ -7,10 +7,11 @@
 
 // Local includes
 #include "../constants.hpp"
+#include "../status.hpp"
 
 namespace sbar {
 
-std::string get_user() {
+std::string Fields::get_user() {
     auto uid = geteuid();
 
     struct passwd* passwd_info = getpwuid(uid);

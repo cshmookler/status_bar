@@ -6,32 +6,32 @@
 
 namespace sbar {
 
-std::string get_volume_status(Sound_mixer& mixer) {
-    if (! mixer.good() && ! mixer.init()) {
+std::string Fields::get_volume_status() {
+    if (! this->sound_mixer.good() && ! this->sound_mixer.init()) {
         return sbar::error_str;
     }
-    return mixer.get_playback_status();
+    return this->sound_mixer.get_playback_status();
 }
 
-std::string get_volume_perc(Sound_mixer& mixer) {
-    if (! mixer.good() && ! mixer.init()) {
+std::string Fields::get_volume_percent() {
+    if (! this->sound_mixer.good() && ! this->sound_mixer.init()) {
         return sbar::error_str;
     }
-    return mixer.get_playback_volume();
+    return this->sound_mixer.get_playback_volume();
 }
 
-std::string get_capture_status(Sound_mixer& mixer) {
-    if (! mixer.good() && ! mixer.init()) {
+std::string Fields::get_capture_status() {
+    if (! this->sound_mixer.good() && ! this->sound_mixer.init()) {
         return sbar::error_str;
     }
-    return mixer.get_capture_status();
+    return this->sound_mixer.get_capture_status();
 }
 
-std::string get_capture_perc(Sound_mixer& mixer) {
-    if (! mixer.good() && ! mixer.init()) {
+std::string Fields::get_capture_percent() {
+    if (! this->sound_mixer.good() && ! this->sound_mixer.init()) {
         return sbar::error_str;
     }
-    return mixer.get_capture_volume();
+    return this->sound_mixer.get_capture_volume();
 }
 
 } // namespace sbar

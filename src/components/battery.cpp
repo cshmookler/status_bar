@@ -93,8 +93,8 @@ std::string Battery::get_time_remaining() const {
     return sprintf("%.2i:%.2i", hours_until_empty, minutes_until_empty);
 }
 
-std::string get_battery_status(Battery& battery) {
-    if (! battery.good() && ! battery.init()) {
+std::string Fields::get_battery_status() {
+    if (! this->battery.good() && ! this->battery.init()) {
         return sbar::error_str;
     }
 
@@ -114,7 +114,7 @@ std::string get_battery_status(Battery& battery) {
     const int very_low_battery_percent = 20;
 
     std::string status =
-      get_first_line(battery.path() / battery_status_filename);
+      get_first_line(this->battery.path() / battery_status_filename);
 
     if (status == battery_status_full || status == battery_status_charging) {
         return "🟢";
@@ -127,7 +127,7 @@ std::string get_battery_status(Battery& battery) {
         return sbar::error_str;
     }
 
-    std::string battery_percent = get_battery_percent(battery);
+    std::string battery_percent = this->get_battery_percent();
     if (battery_percent == sbar::error_str) {
         return sbar::error_str;
     }
@@ -145,15 +145,15 @@ std::string get_battery_status(Battery& battery) {
     return "🔵";
 }
 
-std::string get_battery_device(Battery& battery) {
-    if (! battery.good() && ! battery.init()) {
+std::string Fields::get_battery_device() {
+    if (! this->battery.good() && ! this->battery.init()) {
         return sbar::error_str;
     }
-    return battery->stem();
+    return this->battery->stem();
 }
 
-std::string get_battery_percent(Battery& battery) {
-    if (! battery.good() && ! battery.init()) {
+std::string Fields::get_battery_percent() {
+    if (! this->battery.good() && ! this->battery.init()) {
         return sbar::error_str;
     }
 
@@ -164,7 +164,7 @@ std::string get_battery_percent(Battery& battery) {
     const char* const battery_capacity_filename = "capacity";
 
     std::string capacity =
-      get_first_line(battery.path() / battery_capacity_filename);
+      get_first_line(this->battery.path() / battery_capacity_filename);
     if (capacity == sbar::null_str) {
         return sbar::error_str;
     }
@@ -172,14 +172,14 @@ std::string get_battery_percent(Battery& battery) {
     return capacity;
 }
 
-std::string get_battery_time_remaining(Battery& battery) {
-    if (! battery.good() && ! battery.init()) {
+std::string Fields::get_battery_time_remaining() {
+    if (! this->battery.good() && ! this->battery.init()) {
         return sbar::error_str;
     }
-    if (! battery.add_sample()) {
+    if (! this->battery.add_sample()) {
         return sbar::error_str;
     }
-    return battery.get_time_remaining();
+    return this->battery.get_time_remaining();
 }
 
 } // namespace sbar

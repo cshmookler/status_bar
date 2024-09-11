@@ -32,7 +32,7 @@ bool Backlight::init() {
     return false;
 }
 
-std::string get_backlight_percent(Backlight& backlight) {
+std::string Fields::get_backlight_percent() {
     if (! backlight.good() && ! backlight.init()) {
         return sbar::error_str;
     }
@@ -45,13 +45,13 @@ std::string get_backlight_percent(Backlight& backlight) {
     const char* const device_max_brightness_filename = "max_brightness";
 
     std::string brightness =
-      get_first_line(backlight.path() / device_brightness_filename);
+      get_first_line(this->backlight.path() / device_brightness_filename);
     if (brightness == sbar::null_str) {
         return sbar::error_str;
     }
 
     std::string max_brightness =
-      get_first_line(backlight.path() / device_max_brightness_filename);
+      get_first_line(this->backlight.path() / device_max_brightness_filename);
     if (max_brightness == sbar::null_str) {
         return sbar::error_str;
     }

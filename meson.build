@@ -42,6 +42,8 @@ exe_status_bar = executable(
         src_dir / 'utils.cpp',
         src_dir / 'notify.cpp',
         src_dir / 'watcher.cpp',
+        src_dir / 'status.cpp',
+        src_dir / 'root_window.cpp',
         src_dir / 'components' / 'time.cpp',
         src_dir / 'components' / 'memory.cpp',
         src_dir / 'components' / 'cpu.cpp',
@@ -115,6 +117,7 @@ if dep_gtest_main.found()
         files(
             tests_dir / 'status_test.cpp',
             src_dir / 'utils.cpp',
+            src_dir / 'status.cpp',
             src_dir / 'components' / 'time.cpp',
             src_dir / 'components' / 'memory.cpp',
             src_dir / 'components' / 'cpu.cpp',

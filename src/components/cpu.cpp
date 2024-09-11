@@ -5,7 +5,7 @@
 #include <string_view>
 
 // Local includes
-#include "../persistent.hpp"
+#include "../status.hpp"
 
 namespace sbar {
 
@@ -57,9 +57,9 @@ size_t Cpu::get_total(cpu_stat stat) const {
     return total;
 }
 
-std::string get_cpu_percent(Cpu& cpu) {
-    if (! cpu.ready()) {
-        if (! cpu.update_stat()) {
+std::string Fields::get_cpu_percent() {
+    if (! this->cpu.ready()) {
+        if (! this->cpu.update_stat()) {
             return sbar::error_str;
         }
         return sbar::standby_str;
@@ -67,16 +67,16 @@ std::string get_cpu_percent(Cpu& cpu) {
 
     cpu_stat idle_components = cpu_stat::idle;
 
-    auto prev_total = cpu.get_total();
-    auto prev_idle = cpu.get_total(idle_components);
+    auto prev_total = this->cpu.get_total();
+    auto prev_idle = this->cpu.get_total(idle_components);
     auto prev_work = prev_total - prev_idle;
 
-    if (! cpu.update_stat()) {
+    if (! this->cpu.update_stat()) {
         return sbar::error_str;
     }
 
-    auto new_total = cpu.get_total();
-    auto new_idle = cpu.get_total(idle_components);
+    auto new_total = this->cpu.get_total();
+    auto new_idle = this->cpu.get_total(idle_components);
     auto new_work = new_total - new_idle;
 
     auto total_diff = static_cast<double>(new_total - prev_total);
@@ -85,7 +85,7 @@ std::string get_cpu_percent(Cpu& cpu) {
     return sprintf("%2.0f", (work_diff / total_diff) * 1e2);
 }
 
-std::string get_cpu_temperature() {
+std::string Fields::get_cpu_temperature() {
     const char* const sys_class_hwmon_path = "/sys/class/hwmon/";
     const char* const sys_class_hwmon_core_temp_name_filename = "name";
     const char* const sys_class_hwmon_core_temp_name = "coretemp";

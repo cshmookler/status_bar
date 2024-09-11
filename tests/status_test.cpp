@@ -1,8 +1,5 @@
 // Standard includes
-#include <chrono>
-#include <memory>
 #include <string>
-#include <thread>
 
 // External includes
 #include <gtest/gtest.h>
@@ -11,241 +8,182 @@
 #include "../src/status.hpp"
 
 TEST(status, time) {
-    std::string time = sbar::get_time();
+    sbar::Fields fields;
+    std::string time = fields.get_time();
     EXPECT_STRNE(time.data(), sbar::error_str);
 }
 
 TEST(status, uptime) {
-    sbar::System system{};
-    ASSERT_FALSE(system.good());
-    ASSERT_TRUE(system.init());
-    ASSERT_TRUE(system.good());
-    std::string uptime = sbar::get_uptime(system);
+    sbar::Fields fields;
+    std::string uptime = fields.get_uptime();
     EXPECT_STRNE(uptime.data(), sbar::error_str);
 }
 
 TEST(status, disk) {
-    std::string disk_percent = sbar::get_disk_percent();
+    sbar::Fields fields;
+    std::string disk_percent = fields.get_disk_percent();
     EXPECT_STRNE(disk_percent.data(), sbar::error_str);
 }
 
 TEST(status, memory) {
-    sbar::System system{};
-    ASSERT_FALSE(system.good());
-    ASSERT_TRUE(system.init());
-    ASSERT_TRUE(system.good());
-    std::string memory = sbar::get_memory_percent(system);
+    sbar::Fields fields;
+    std::string memory = fields.get_memory_percent();
     EXPECT_STRNE(memory.data(), sbar::error_str);
 }
 
 TEST(status, swap) {
-    sbar::System system{};
-    ASSERT_FALSE(system.good());
-    ASSERT_TRUE(system.init());
-    ASSERT_TRUE(system.good());
-    std::string swap = sbar::get_swap_percent(system);
+    sbar::Fields fields;
+    std::string swap = fields.get_swap_percent();
     EXPECT_STRNE(swap.data(), sbar::error_str);
 }
 
 TEST(status, cpu) {
-    sbar::Cpu cpu{};
-    std::string percent = sbar::get_cpu_percent(cpu);
+    sbar::Fields fields;
+    std::string percent = fields.get_cpu_percent();
     EXPECT_STREQ(percent.data(), sbar::standby_str);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    percent = sbar::get_cpu_percent(cpu);
+    percent = fields.get_cpu_percent();
     EXPECT_STRNE(percent.data(), sbar::standby_str);
     EXPECT_STRNE(percent.data(), sbar::error_str);
 }
 
 TEST(status, cpuTemp) {
-    std::string temp = sbar::get_cpu_temperature();
+    sbar::Fields fields;
+    std::string temp = fields.get_cpu_temperature();
     EXPECT_STRNE(temp.data(), sbar::error_str);
 }
 
 TEST(status, load1) {
-    sbar::System system{};
-    ASSERT_FALSE(system.good());
-    ASSERT_TRUE(system.init());
-    ASSERT_TRUE(system.good());
-    std::string load1 = sbar::get_one_minute_load_average(system);
+    sbar::Fields fields;
+    std::string load1 = fields.get_one_minute_load_average();
     EXPECT_STRNE(load1.data(), sbar::error_str);
 }
 
 TEST(status, load5) {
-    sbar::System system{};
-    ASSERT_FALSE(system.good());
-    ASSERT_TRUE(system.init());
-    ASSERT_TRUE(system.good());
-    std::string load5 = sbar::get_five_minute_load_average(system);
+    sbar::Fields fields;
+    std::string load5 = fields.get_five_minute_load_average();
     EXPECT_STRNE(load5.data(), sbar::error_str);
 }
 
 TEST(status, load15) {
-    sbar::System system{};
-    ASSERT_FALSE(system.good());
-    ASSERT_TRUE(system.init());
-    ASSERT_TRUE(system.good());
-    std::string load15 = sbar::get_fifteen_minute_load_average(system);
+    sbar::Fields fields;
+    std::string load15 = fields.get_fifteen_minute_load_average();
     EXPECT_STRNE(load15.data(), sbar::error_str);
 }
 
 TEST(status, batteryStatus) {
-    sbar::Battery battery{};
-    ASSERT_FALSE(battery.good());
-    ASSERT_TRUE(battery.init());
-    ASSERT_TRUE(battery.good());
-    std::string status = sbar::get_battery_status(battery);
+    sbar::Fields fields;
+    std::string status = fields.get_battery_status();
     EXPECT_STRNE(status.data(), sbar::error_str);
 }
 
 TEST(status, batteryDevice) {
-    sbar::Battery battery{};
-    ASSERT_FALSE(battery.good());
-    ASSERT_TRUE(battery.init());
-    ASSERT_TRUE(battery.good());
-    std::string device = sbar::get_battery_device(battery);
+    sbar::Fields fields;
+    std::string device = fields.get_battery_device();
     EXPECT_STRNE(device.data(), sbar::error_str);
 }
 
 TEST(status, battery) {
-    sbar::Battery battery{};
-    ASSERT_FALSE(battery.good());
-    ASSERT_TRUE(battery.init());
-    ASSERT_TRUE(battery.good());
-    std::string percent = sbar::get_battery_percent(battery);
+    sbar::Fields fields;
+    std::string percent = fields.get_battery_percent();
     EXPECT_STRNE(percent.data(), sbar::error_str);
 }
 
 TEST(status, batteryTimeRemaining) {
-    sbar::Battery battery{};
-    ASSERT_FALSE(battery.good());
-    ASSERT_TRUE(battery.init());
-    ASSERT_TRUE(battery.good());
-    std::string remaining = sbar::get_battery_time_remaining(battery);
+    sbar::Fields fields;
+    std::string remaining = fields.get_battery_time_remaining();
     EXPECT_STREQ(remaining.data(), sbar::standby_str);
 }
 
 TEST(status, backlight) {
-    sbar::Backlight backlight{};
-    ASSERT_FALSE(backlight.good());
-    ASSERT_TRUE(backlight.init());
-    ASSERT_TRUE(backlight.good());
-    std::string percent = sbar::get_backlight_percent(backlight);
+    sbar::Fields fields;
+    std::string percent = fields.get_backlight_percent();
     EXPECT_STRNE(percent.data(), sbar::error_str);
 }
 
 TEST(status, networkStatus) {
-    sbar::Network network{};
-    ASSERT_FALSE(network.good());
-    ASSERT_TRUE(network.init());
-    ASSERT_TRUE(network.good());
-    std::string status = sbar::get_network_status(network);
+    sbar::Fields fields;
+    std::string status = fields.get_network_status();
     EXPECT_STRNE(status.data(), sbar::error_str);
 }
 
 TEST(status, networkDevice) {
-    sbar::Network network{};
-    ASSERT_FALSE(network.good());
-    ASSERT_TRUE(network.init());
-    ASSERT_TRUE(network.good());
-    std::string device = sbar::get_network_device(network);
+    sbar::Fields fields;
+    std::string device = fields.get_network_device();
     EXPECT_STRNE(device.data(), sbar::error_str);
 }
 
 TEST(status, networkSSID) {
-    sbar::Network network{};
-    ASSERT_FALSE(network.good());
-    ASSERT_TRUE(network.init());
-    ASSERT_TRUE(network.good());
-    std::string ssid = sbar::get_network_ssid(network);
+    sbar::Fields fields;
+    std::string ssid = fields.get_network_ssid();
     EXPECT_STRNE(ssid.data(), sbar::error_str);
 }
 
 TEST(status, networkStrength) {
-    sbar::Network network{};
-    ASSERT_FALSE(network.good());
-    ASSERT_TRUE(network.init());
-    ASSERT_TRUE(network.good());
-    std::string signal = sbar::get_network_signal_strength_percent(network);
+    sbar::Fields fields;
+    std::string signal = fields.get_network_signal_strength_percent();
     EXPECT_STRNE(signal.data(), sbar::error_str);
 }
 
 TEST(status, networkUpload) {
-    sbar::Network network{};
-    ASSERT_FALSE(network.good());
-    ASSERT_TRUE(network.init());
-    ASSERT_TRUE(network.good());
-    std::string upload = sbar::get_network_upload(network);
+    sbar::Fields fields;
+    std::string upload = fields.get_network_upload();
     EXPECT_STREQ(upload.data(), sbar::standby_str);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    upload = sbar::get_network_upload(network);
+    upload = fields.get_network_upload();
     EXPECT_STRNE(upload.data(), sbar::error_str);
 }
 
 TEST(status, networkDownload) {
-    sbar::Network network{};
-    ASSERT_FALSE(network.good());
-    ASSERT_TRUE(network.init());
-    ASSERT_TRUE(network.good());
-    std::string download = sbar::get_network_download(network);
+    sbar::Fields fields;
+    std::string download = fields.get_network_download();
     EXPECT_STREQ(download.data(), sbar::standby_str);
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    download = sbar::get_network_download(network);
+    download = fields.get_network_download();
     EXPECT_STRNE(download.data(), sbar::error_str);
 }
 
 TEST(status, volumeStatus) {
-    sbar::Sound_mixer sound_mixer{};
-    ASSERT_FALSE(sound_mixer.good());
-    ASSERT_TRUE(sound_mixer.init());
-    ASSERT_TRUE(sound_mixer.good());
-    std::string status = sbar::get_volume_status(sound_mixer);
+    sbar::Fields fields;
+    std::string status = fields.get_volume_status();
     EXPECT_STRNE(status.data(), sbar::error_str);
 }
 
 TEST(status, volume) {
-    sbar::Sound_mixer sound_mixer{};
-    ASSERT_FALSE(sound_mixer.good());
-    ASSERT_TRUE(sound_mixer.init());
-    ASSERT_TRUE(sound_mixer.good());
-    std::string volume = sbar::get_volume_perc(sound_mixer);
+    sbar::Fields fields;
+    std::string volume = fields.get_volume_percent();
     EXPECT_STRNE(volume.data(), sbar::error_str);
 }
 
 TEST(status, captureStatus) {
-    sbar::Sound_mixer sound_mixer{};
-    ASSERT_FALSE(sound_mixer.good());
-    ASSERT_TRUE(sound_mixer.init());
-    ASSERT_TRUE(sound_mixer.good());
-    std::string status = sbar::get_capture_status(sound_mixer);
+    sbar::Fields fields;
+    std::string status = fields.get_capture_status();
     EXPECT_STRNE(status.data(), sbar::error_str);
 }
 
 TEST(status, capture) {
-    sbar::Sound_mixer sound_mixer{};
-    ASSERT_FALSE(sound_mixer.good());
-    ASSERT_TRUE(sound_mixer.init());
-    ASSERT_TRUE(sound_mixer.good());
-    std::string capture = sbar::get_capture_perc(sound_mixer);
+    sbar::Fields fields;
+    std::string capture = fields.get_capture_percent();
     EXPECT_STRNE(capture.data(), sbar::error_str);
 }
 
 TEST(status, microphone) {
-    std::string microphone = sbar::get_microphone_status();
+    sbar::Fields fields;
+    std::string microphone = fields.get_microphone_status();
     EXPECT_STRNE(microphone.data(), sbar::error_str);
 }
 
 TEST(status, camera) {
-    std::string status = sbar::get_camera_status();
+    sbar::Fields fields;
+    std::string status = fields.get_camera_status();
     EXPECT_STRNE(status.data(), sbar::error_str);
 }
 
 TEST(status, user) {
-    std::string user = sbar::get_user();
+    sbar::Fields fields;
+    std::string user = fields.get_user();
     EXPECT_STRNE(user.data(), sbar::error_str);
 }
 
 TEST(status, kernelStatus) {
-    std::string kernel_status = sbar::get_outdated_kernel_indicator();
+    sbar::Fields fields;
+    std::string kernel_status = fields.get_outdated_kernel_indicator();
     EXPECT_STRNE(kernel_status.data(), sbar::error_str);
 }

@@ -6,10 +6,11 @@
 
 // Local includes
 #include "../utils.hpp"
+#include "../status.hpp"
 
 namespace sbar {
 
-std::string get_microphone_status() {
+std::string Fields::get_microphone_status() {
     const char* const asound_path = "/proc/asound/";
     const char* const card_prefix = "card";
     const char* const device_prefix = "pcm";

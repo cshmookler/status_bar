@@ -11,7 +11,7 @@
 
 namespace sbar {
 
-std::string get_time() {
+std::string Fields::get_time() {
     std::time_t epoch_time = std::time(nullptr);
     std::tm* calendar_time = std::localtime(&epoch_time);
 
@@ -25,12 +25,12 @@ std::string get_time() {
       calendar_time->tm_sec);
 }
 
-std::string get_uptime(System& system) {
-    if (! system.good() && ! system.init()) {
+std::string Fields::get_uptime() {
+    if (! this->system.good() && ! this->system.init()) {
         return sbar::error_str;
     }
 
-    std::time_t epoch_uptime = system->uptime;
+    std::time_t epoch_uptime = this->system->uptime;
     std::tm* calendar_uptime = std::gmtime(&epoch_uptime);
 
     // non-standard format

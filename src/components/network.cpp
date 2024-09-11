@@ -104,12 +104,12 @@ network_state get_network_state(Network& network) {
     return network_state::error;
 }
 
-std::string get_network_status(Network& network) {
-    if (! network.good() && ! network.init()) {
+std::string Fields::get_network_status() {
+    if (! this->network.good() && ! this->network.init()) {
         return sbar::error_str;
     }
 
-    switch (get_network_state(network)) {
+    switch (get_network_state(this->network)) {
         case network_state::up:
             return "🟢";
         case network_state::dormant:
@@ -123,11 +123,11 @@ std::string get_network_status(Network& network) {
     }
 }
 
-std::string get_network_device(Network& network) {
-    if (! network.good() && ! network.init()) {
+std::string Fields::get_network_device() {
+    if (! this->network.good() && ! this->network.init()) {
         return sbar::error_str;
     }
-    return network->stem();
+    return this->network->stem();
 }
 
 template<typename... Request_t>
@@ -173,15 +173,15 @@ class Unix_socket {
     }
 };
 
-std::string get_network_ssid(Network& network) {
-    if (! network.good() && ! network.init()) {
+std::string Fields::get_network_ssid() {
+    if (! this->network.good() && ! this->network.init()) {
         return sbar::error_str;
     }
 
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    if (get_network_state(network) != network_state::up) {
+    if (get_network_state(this->network) != network_state::up) {
         return sbar::standby_str;
     }
 
@@ -192,7 +192,8 @@ std::string get_network_ssid(Network& network) {
 
     iwreq iwreq_info{};
 
-    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name, network->stem().string().data());
+    std::strcpy(
+      iwreq_info.ifr_ifrn.ifrn_name, this->network->stem().string().data());
 
     // This array must be 1 unit larger than the maximum ESSID size and default
     // initialized so that the ESSID is null-terminated.
@@ -208,15 +209,15 @@ std::string get_network_ssid(Network& network) {
     return std::string{ essid.data() };
 }
 
-std::string get_network_signal_strength_percent(Network& network) {
-    if (! network.good() && ! network.init()) {
+std::string Fields::get_network_signal_strength_percent() {
+    if (! this->network.good() && ! this->network.init()) {
         return sbar::error_str;
     }
 
     // documentation:
     // https://github.com/torvalds/linux/blob/master/include/uapi/linux/wireless.h
 
-    if (get_network_state(network) != network_state::up) {
+    if (get_network_state(this->network) != network_state::up) {
         return sbar::standby_str;
     }
 
@@ -230,7 +231,8 @@ std::string get_network_signal_strength_percent(Network& network) {
     iwreq_info.u.data.pointer = &iw_statistics_info;
     iwreq_info.u.data.length = sizeof(iw_statistics_info);
 
-    std::strcpy(iwreq_info.ifr_ifrn.ifrn_name, network->stem().string().data());
+    std::strcpy(
+      iwreq_info.ifr_ifrn.ifrn_name, this->network->stem().string().data());
 
     if (! socket.request(SIOCGIWSTATS, iwreq_info)) {
         return sbar::error_str;
@@ -243,8 +245,8 @@ std::string get_network_signal_strength_percent(Network& network) {
     return sprintf("%.0f", signal_strength);
 }
 
-std::string get_network_upload(Network& network) {
-    if (! network.good() && ! network.init()) {
+std::string Fields::get_network_upload() {
+    if (! this->network.good() && ! this->network.init()) {
         return sbar::error_str;
     }
 
@@ -255,7 +257,7 @@ std::string get_network_upload(Network& network) {
     const char* const network_statistics_path = "statistics/";
     const char* const network_statistics_tx_bytes_filename = "tx_bytes";
 
-    std::string upload_bytes = get_first_line(network.path()
+    std::string upload_bytes = get_first_line(this->network.path()
       / network_statistics_path / network_statistics_tx_bytes_filename);
     if (upload_bytes == sbar::null_str) {
         return sbar::error_str;
@@ -264,7 +266,7 @@ std::string get_network_upload(Network& network) {
     size_t upload_bytes_numeric = std::stoull(upload_bytes);
 
     auto upload_byte_difference =
-      network.get_upload_byte_difference(upload_bytes_numeric);
+      this->network.get_upload_byte_difference(upload_bytes_numeric);
     if (upload_byte_difference == upload_bytes_numeric) {
         return sbar::standby_str;
     }
@@ -272,8 +274,8 @@ std::string get_network_upload(Network& network) {
     return sprintf("%i", upload_byte_difference);
 }
 
-std::string get_network_download(Network& network) {
-    if (! network.good() && ! network.init()) {
+std::string Fields::get_network_download() {
+    if (! this->network.good() && ! this->network.init()) {
         return sbar::error_str;
     }
 
@@ -284,7 +286,7 @@ std::string get_network_download(Network& network) {
     const char* const network_statistics_path = "statistics/";
     const char* const network_statistics_rx_bytes_filename = "rx_bytes";
 
-    std::string download_bytes = get_first_line(network.path()
+    std::string download_bytes = get_first_line(this->network.path()
       / network_statistics_path / network_statistics_rx_bytes_filename);
     if (download_bytes == sbar::null_str) {
         return sbar::error_str;
@@ -293,7 +295,7 @@ std::string get_network_download(Network& network) {
     size_t download_bytes_numeric = std::stoull(download_bytes);
 
     auto download_byte_difference =
-      network.get_download_byte_difference(download_bytes_numeric);
+      this->network.get_download_byte_difference(download_bytes_numeric);
     if (download_byte_difference == download_bytes_numeric) {
         return sbar::standby_str;
     }

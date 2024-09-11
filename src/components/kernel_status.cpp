@@ -9,10 +9,11 @@
 
 // Local includes
 #include "../constants.hpp"
+#include "../status.hpp"
 
 namespace sbar {
 
-std::string get_outdated_kernel_indicator() {
+std::string Fields::get_outdated_kernel_indicator() {
     const char* const modules_path = "/usr/lib/modules/";
 
     utsname utsname_info{};

@@ -4,10 +4,8 @@
 #include <cstring>
 #include <iostream>
 #include <string>
-#include <type_traits>
 
 // External includes
-#include <X11/Xlib.h>
 #include <argparse/argparse.hpp>
 #include <sys/inotify.h>
 #include <sys/select.h>
@@ -16,7 +14,14 @@
 // Local includes
 #include "../include/watcher.hpp"
 #include "status.hpp"
+#include "root_window.hpp"
 #include "version.hpp"
+
+using System_clock = std::chrono::system_clock;
+using Time_point = System_clock::time_point;
+using Duration = System_clock::duration;
+using Milliseconds = std::chrono::milliseconds;
+using Seconds = std::chrono::seconds;
 
 bool done = false;
 
@@ -36,295 +41,97 @@ void signal_handler(int signal) {
     }
 }
 
-class Root_window {
-    Display* display_;
-
-  public:
-    Root_window() : display_(XOpenDisplay(nullptr)) {
-        if (! this->good()) {
-            std::cerr << "Error: XOpenDisplay: Failed to open display\n";
-        }
+std::optional<sbar::field> get_field(char seq) {
+    switch (seq) {
+        case 'T': // time
+            return sbar::field::time;
+        case 'Y': // (uptime)
+            return sbar::field::uptime;
+        case 'I': // (disk)
+            return sbar::field::disk;
+        case 'S': // swap
+            return sbar::field::swap;
+        case 'M': // memory
+            return sbar::field::memory;
+        case 'C': // cpu
+            return sbar::field::cpu;
+        case 'P': // (temperature)
+            return sbar::field::cpu_temp;
+        case '1': // 1st load average
+            return sbar::field::load_1;
+        case '2': // 2nd load average
+            return sbar::field::load_5;
+        case '3': // 3rd load average
+            return sbar::field::load_15;
+        case 'a': // (battery status)
+            return sbar::field::battery_status;
+        case 'A': // (battery device)
+            return sbar::field::battery_device;
+        case 'B': // battery
+            return sbar::field::battery;
+        case 'R': // (battery time) remaining
+            return sbar::field::battery_time;
+        case 'L': // (back)light
+            return sbar::field::backlight;
+        case 'e': // (network status)
+            return sbar::field::network_status;
+        case 'E': // (network device)
+            return sbar::field::network_device;
+        case 'N': // network
+            return sbar::field::network_ssid;
+        case 'W': // (wifi) (network strength)
+            return sbar::field::network_strength;
+        case 'U': // upload
+            return sbar::field::network_upload;
+        case 'D': // download
+            return sbar::field::network_download;
+        case 'v': // volume (status)
+            return sbar::field::volume_status;
+        case 'V': // volume
+            return sbar::field::volume;
+        case 'h': // (capture status)
+            return sbar::field::capture_status;
+        case 'H': // (capture)
+            return sbar::field::capture;
+        case 'm': // microphone (status)
+            return sbar::field::microphone;
+        case 'c': // camera (status)
+            return sbar::field::camera;
+        case 'Z': // (user)
+            return sbar::field::user;
+        case 'k': // kernel (status)
+            return sbar::field::kernel_status;
+        default:
+            return std::nullopt;
     }
-
-    Root_window(const Root_window&) = delete;
-    Root_window(Root_window&&) noexcept = delete;
-    Root_window& operator=(const Root_window&) = delete;
-    Root_window& operator=(Root_window&&) noexcept = delete;
-
-    ~Root_window() {
-        if (XCloseDisplay(this->display_) < 0) {
-            std::cerr << "Error: XCloseDisplay: Failed to close display\n";
-        }
-    }
-
-    [[nodiscard]] bool good() const {
-        return this->display_ != nullptr;
-    }
-
-    bool set_title(const char* title) {
-        if (XStoreName(this->display_, DefaultRootWindow(this->display_), title)
-          < 0) {
-            std::cerr << "Error: XStoreName: Allocation failed\n";
-            return false;
-        }
-        XFlush(this->display_);
-        return true;
-    }
-};
-
-template<typename Function, typename... Args>
-[[nodiscard]] std::string get_field_or_call(
-  std::array<std::string, sbar::field_count>& fields,
-  sbar::field fields_to_update,
-  sbar::field this_field,
-  Function function,
-  Args&... args) {
-    static_assert(std::is_invocable_v<Function, Args&...>,
-      "The function must be invocable with the given arguments");
-    size_t field_index = sbar::index(static_cast<size_t>(this_field));
-    if ((fields_to_update & this_field) != sbar::field_none) {
-        fields.at(field_index) = function(args...);
-    }
-    return fields.at(field_index);
 }
 
-[[nodiscard]] std::string format_status(const std::string& status,
-  std::array<std::string, sbar::field_count>& fields,
-  sbar::field fields_to_update,
-  sbar::System& system,
-  sbar::Cpu& cpu,
-  sbar::Battery& battery,
-  sbar::Backlight& backlight,
-  sbar::Network& network,
-  sbar::Sound_mixer& sound_mixer) {
-    std::string formatted_status;
+[[nodiscard]] sbar::Status parse_status(const std::string& status_seq) {
+    sbar::Status status;
+    status.separators.push_back(""); // At least one separator is required.
 
     bool found_escape_sequence = false;
 
-    for (char chr : status) {
+    for (char chr : status_seq) {
         if (! found_escape_sequence) {
             if (chr == '/') {
                 found_escape_sequence = true;
             } else {
-                formatted_status.push_back(chr);
+                status.separators.back().push_back(chr);
             }
             continue;
         }
-
-        std::string insert;
-
-        switch (chr) {
-            case '/':
-                insert = "/";
-                break;
-            case 't':
-                insert = get_field_or_call(
-                  fields, fields_to_update, sbar::field::time, sbar::get_time);
-                break;
-            case 'u':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::uptime,
-                  sbar::get_uptime,
-                  system);
-                break;
-            case 'd':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::disk,
-                  sbar::get_disk_percent);
-                break;
-            case 's':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::swap,
-                  sbar::get_swap_percent,
-                  system);
-                break;
-            case 'm':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::memory,
-                  sbar::get_memory_percent,
-                  system);
-                break;
-            case 'c':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::cpu,
-                  sbar::get_cpu_percent,
-                  cpu);
-                break;
-            case 'C':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::cpu_temp,
-                  sbar::get_cpu_temperature);
-                break;
-            case '1':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::load_1,
-                  sbar::get_one_minute_load_average,
-                  system);
-                break;
-            case '5':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::load_5,
-                  sbar::get_five_minute_load_average,
-                  system);
-                break;
-            case 'f':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::load_15,
-                  sbar::get_fifteen_minute_load_average,
-                  system);
-                break;
-            case 'b':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::battery_status,
-                  sbar::get_battery_status,
-                  battery);
-                break;
-            case 'n':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::battery_device,
-                  sbar::get_battery_device,
-                  battery);
-                break;
-            case 'B':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::battery,
-                  sbar::get_battery_percent,
-                  battery);
-                break;
-            case 'T':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::battery_time,
-                  sbar::get_battery_time_remaining,
-                  battery);
-                break;
-            case 'l':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::backlight,
-                  sbar::get_backlight_percent,
-                  backlight);
-                break;
-            case 'S':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::network_status,
-                  sbar::get_network_status,
-                  network);
-                break;
-            case 'N':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::network_device,
-                  sbar::get_network_device,
-                  network);
-                break;
-            case 'w':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::network_ssid,
-                  sbar::get_network_ssid,
-                  network);
-                break;
-            case 'W':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::network_strength,
-                  sbar::get_network_signal_strength_percent,
-                  network);
-                break;
-            case 'U':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::network_upload,
-                  sbar::get_network_upload,
-                  network);
-                break;
-            case 'D':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::network_download,
-                  sbar::get_network_download,
-                  network);
-                break;
-            case 'v':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::volume_status,
-                  sbar::get_volume_status,
-                  sound_mixer);
-                break;
-            case 'V':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::volume,
-                  sbar::get_volume_perc,
-                  sound_mixer);
-                break;
-            case 'h':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::capture_status,
-                  sbar::get_capture_status,
-                  sound_mixer);
-                break;
-            case 'H':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::capture,
-                  sbar::get_capture_perc,
-                  sound_mixer);
-                break;
-            case 'e':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::microphone,
-                  sbar::get_microphone_status);
-                break;
-            case 'a':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::camera,
-                  sbar::get_camera_status);
-                break;
-            case 'x':
-                insert = get_field_or_call(
-                  fields, fields_to_update, sbar::field::user, sbar::get_user);
-                break;
-            case 'k':
-                insert = get_field_or_call(fields,
-                  fields_to_update,
-                  sbar::field::kernel_status,
-                  sbar::get_outdated_kernel_indicator);
-                break;
-            default:
-                break;
-        }
-
-        formatted_status.append(insert);
-
         found_escape_sequence = false;
+
+        std::optional<sbar::field> optional_field = get_field(chr);
+        if (! optional_field.has_value()) {
+            continue;
+        }
+        status.active_fields.push_back(optional_field.value());
+        status.separators.push_back("");
     }
 
-    system.reset();
-    battery.reset();
-    backlight.reset();
-    network.reset();
-    sound_mixer.reset();
-
-    return formatted_status;
+    return status;
 }
 
 int main(int argc, char** argv) {
@@ -337,35 +144,29 @@ int main(int argc, char** argv) {
     argparser.add_description("Status bar for dwm (https://dwm.suckless.org). "
                               "Customizable at runtime and updates instantly.");
 
-    // argparser.add_argument("-p", "--path")
-    //   .metavar("PATH")
-    //   .nargs(1)
-    //   .help("the path to the notification file\n   ")
-    //   .default_value("/tmp/status_bar");
-
     argparser.add_argument("-s", "--status")
       .metavar("STATUS")
       .nargs(1)
       .help("custom status with the following interpreted sequences:\n"
             "    //    a literal /\n"
-            "    /t    current time\n"
-            "    /u    uptime\n"
-            "    /d    disk usage\n"
-            "    /s    swap usage\n"
-            "    /m    memory usage\n"
-            "    /c    CPU usage\n"
-            "    /C    CPU temperature\n"
+            "    /T    current time\n"
+            "    /Y    uptime\n"
+            "    /I    disk usage\n"
+            "    /S    swap usage\n"
+            "    /M    memory usage\n"
+            "    /C    CPU usage\n"
+            "    /P    CPU temperature\n"
             "    /1    1 minute load average\n"
-            "    /5    5 minute load average\n"
-            "    /f    15 minute load average\n"
-            "    /b    battery state\n"
-            "    /n    battery device\n"
+            "    /2    5 minute load average\n"
+            "    /3    15 minute load average\n"
+            "    /a    battery state\n"
+            "    /A    battery device\n"
             "    /B    battery percentage\n"
-            "    /T    battery time remaining\n"
-            "    /l    backlight percentage\n"
-            "    /S    network status\n"
-            "    /N    network device\n"
-            "    /w    network SSID\n"
+            "    /R    battery time remaining\n"
+            "    /L    backlight percentage\n"
+            "    /e    network status\n"
+            "    /E    network device\n"
+            "    /N    network SSID\n"
             "    /W    network strength percentage\n"
             "    /U    network upload\n"
             "    /D    network download\n"
@@ -373,12 +174,12 @@ int main(int argc, char** argv) {
             "    /V    playback (volume) percentage\n"
             "    /h    capture (mic) mute\n"
             "    /H    capture (mic) percentage\n"
-            "    /e    microphone state\n"
-            "    /a    camera state\n"
-            "    /x    user\n"
+            "    /m    microphone state\n"
+            "    /c    camera state\n"
+            "    /Z    user\n"
             "    /k    outdated kernel indicator\n   ")
-      .default_value(" /em | /v /V%v /h /H%c | /S /N /w /W%w | /b /n /B%b "
-                     "/T /l%l | /c%c /C°C | /m%m /s%s /d%d | /t | /k /x ");
+      .default_value(" /mm | /v /V%v /h /H%c | /e /E /N /W%w | /a /A /B%b "
+                     "/R /L%l | /C%c /P°C | /M%m /S%s /I%d | /T | /k /Z ");
 
     // Parse arguments
     try {
@@ -395,78 +196,71 @@ int main(int argc, char** argv) {
     std::signal(SIGSEGV, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
-    // Retrieve the status string
-    auto status = argparser.get<std::string>("--status");
+    // Parse the status string
+    sbar::Status status = parse_status(argparser.get<std::string>("--status"));
+
+    // Initialize fields
+    sbar::Fields fields;
 
     // Open the X server display
-    Root_window root{};
+    sbar::Root_window root{};
     if (! root.good()) {
         return 1;
     }
 
-    std::array<std::string, sbar::field_count> fields{};
-
-    sbar::System system;
-    sbar::Cpu cpu;
-    sbar::Battery battery;
-    sbar::Backlight backlight;
-    sbar::Network network;
-    sbar::Sound_mixer sound_mixer;
-
+    // Initialize inotify and begin watching the notification file
     sbar::Inotify& inotify = sbar::Inotify::get();
     sbar::Watcher watcher = inotify.watch(sbar::notify_path);
 
-    while (! done) {
-        std::string formatted_status = format_status(status,
-          fields,
-          sbar::field_all,
-          system,
-          cpu,
-          battery,
-          backlight,
-          network,
-          sound_mixer);
+    const Milliseconds inotify_timeout = Milliseconds(10);
 
-        // Set the status as the title of the root window
-        if (! root.set_title(formatted_status.data())) {
-            return 1;
+    sbar::field fields_to_update = sbar::field_all;
+    bool update_now = false;
+
+    Time_point time_at_next_update = System_clock::now();
+
+    while (! done) {
+        Time_point now = System_clock::now();
+        if (now >= time_at_next_update) {
+            time_at_next_update = now + Seconds(1);
+            update_now = true;
+            fields_to_update = sbar::field_all;
         }
 
-        for (size_t i = 0; i < 20; i++) {
-            if (! inotify.has_event(std::chrono::milliseconds(50))) {
-                continue;
-            }
-            if (! watcher.modified()) {
-                continue;
-            }
+        if (update_now) {
+            update_now = false;
 
-            std::optional<sbar::field> optional_fields =
-              sbar::get_notification();
-            if (! optional_fields.has_value()) {
-                std::cerr << "Failed to read the notification file: \""
-                          << sbar::notify_path << "\"\n";
-                continue;
-            }
-
-            std::string new_formatted_status = format_status(status,
-              fields,
-              optional_fields.value(),
-              system,
-              cpu,
-              battery,
-              backlight,
-              network,
-              sound_mixer);
+            // Format the parsed status
+            std::string formatted_status =
+              fields.format_status(status, fields_to_update);
 
             // Set the status as the title of the root window
-            if (! root.set_title(new_formatted_status.data())) {
+            if (! root.set_title(formatted_status)) {
+                std::cerr << "Failed to set the root window title\n";
                 return 1;
             }
         }
+
+        if (! inotify.has_event(inotify_timeout)) {
+            continue;
+        }
+        if (! watcher.modified()) {
+            continue;
+        }
+
+        std::optional<sbar::field> optional_fields = sbar::get_notification();
+        if (! optional_fields.has_value()) {
+            std::cerr << "Failed to read the notification file at \""
+                      << sbar::notify_path << "\"\n";
+            continue;
+        }
+        update_now = true;
+        fields_to_update = optional_fields.value();
     }
 
-    // Reset the root title
+    // Clear the root title
     if (! root.set_title("")) {
+        std::cerr << "Failed to clear the root window title\n";
         return 1;
     }
 
