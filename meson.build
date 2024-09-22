@@ -22,6 +22,12 @@ configure_file(
     output : 'version.hpp',
 )
 
+dep_fmt = dependency(
+    'fmt',
+    required : true,
+    method : 'auto',
+)
+
 dep_x11 = dependency(
     'x11',
     required : true,
@@ -57,7 +63,7 @@ exe_status_bar = executable(
         src_dir / 'components' / 'user.cpp',
         src_dir / 'components' / 'kernel_status.cpp',
     ),
-    dependencies : [ dep_x11, dep_alsa ],
+    dependencies : [ dep_fmt, dep_x11, dep_alsa ],
     install : true,
 )
 

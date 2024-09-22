@@ -122,13 +122,13 @@ std::string Fields::get_field(field target, field fields_to_update) {
 }
 
 std::string Fields::format_status(Status status, field fields_to_update) {
-    std::string formatted_status;
+    auto sep_it = status.separators.begin();
+    // There is always at least one separator.
+    std::string formatted_status = *(sep_it++);
 
-    auto fields_it = status.active_fields.begin();
-
-    for (const auto& sep : status.separators) {
-        formatted_status += sep + this->get_field(*fields_it, fields_to_update);
-        fields_it++;
+    for (const auto& field : status.active_fields) {
+        // The number of separators is always one greater than the number of fields.
+        formatted_status += this->get_field(field, fields_to_update) + *(sep_it++);
     }
 
     this->reset();

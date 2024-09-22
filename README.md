@@ -9,7 +9,7 @@ Status bar for [dwm](https://dwm.suckless.org). Customizable at runtime and upda
 #### Linux (Arch):
 
 ```bash
-sudo pacman -S base-devel meson gtest argparse libx11 alsa-lib 
+sudo pacman -S base-devel meson gtest fmt argparse libx11 alsa-lib
 ```
 
 ### 2.&nbsp; Clone this project.

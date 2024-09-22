@@ -7,6 +7,7 @@
 
 // External includes
 #include <argparse/argparse.hpp>
+#include <fmt/core.h>
 #include <sys/inotify.h>
 #include <sys/select.h>
 #include <unistd.h>
@@ -22,6 +23,8 @@ using Time_point = System_clock::time_point;
 using Duration = System_clock::duration;
 using Milliseconds = std::chrono::milliseconds;
 using Seconds = std::chrono::seconds;
+
+const char escape_seq = '/';
 
 bool done = false;
 
@@ -110,23 +113,31 @@ std::optional<sbar::field> get_field(char seq) {
     sbar::Status status;
     status.separators.push_back(""); // At least one separator is required.
 
-    bool found_escape_sequence = false;
+    bool found_escape_seq = false;
 
     for (char chr : status_seq) {
-        if (! found_escape_sequence) {
-            if (chr == '/') {
-                found_escape_sequence = true;
+        if (! found_escape_seq) {
+            if (chr == escape_seq) {
+                found_escape_seq = true;
             } else {
                 status.separators.back().push_back(chr);
             }
             continue;
         }
-        found_escape_sequence = false;
+        found_escape_seq = false;
+
+        if (chr == escape_seq) {
+            status.separators.back().push_back(chr);
+            continue;
+        }
 
         std::optional<sbar::field> optional_field = get_field(chr);
         if (! optional_field.has_value()) {
+            std::cerr << "Warning: Invalid sequence: " << escape_seq << chr
+                      << '\n';
             continue;
         }
+
         status.active_fields.push_back(optional_field.value());
         status.separators.push_back("");
     }
@@ -135,6 +146,13 @@ std::optional<sbar::field> get_field(char seq) {
 }
 
 int main(int argc, char** argv) {
+    // Define the default status
+    const std::string default_status =
+      fmt::format(" {0}mm | {0}v {0}V%v {0}h {0}H%c | {0}e {0}E {0}N {0}W%w | "
+                  "{0}a {0}A {0}B%b {0}R {0}L%l | {0}C%c {0}P°C | {0}M%m "
+                  "{0}S%s {0}I%d | {0}T | {0}k {0}Z ",
+        escape_seq);
+
     // Setup the argument parser
     argparse::ArgumentParser argparser{ "status_bar",
         sbar::get_runtime_version(),
@@ -147,39 +165,40 @@ int main(int argc, char** argv) {
     argparser.add_argument("-s", "--status")
       .metavar("STATUS")
       .nargs(1)
-      .help("custom status with the following interpreted sequences:\n"
-            "    //    a literal /\n"
-            "    /T    current time\n"
-            "    /Y    uptime\n"
-            "    /I    disk usage\n"
-            "    /S    swap usage\n"
-            "    /M    memory usage\n"
-            "    /C    CPU usage\n"
-            "    /P    CPU temperature\n"
-            "    /1    1 minute load average\n"
-            "    /2    5 minute load average\n"
-            "    /3    15 minute load average\n"
-            "    /a    battery state\n"
-            "    /A    battery device\n"
-            "    /B    battery percentage\n"
-            "    /R    battery time remaining\n"
-            "    /L    backlight percentage\n"
-            "    /e    network status\n"
-            "    /E    network device\n"
-            "    /N    network SSID\n"
-            "    /W    network strength percentage\n"
-            "    /U    network upload\n"
-            "    /D    network download\n"
-            "    /v    playback (volume) mute\n"
-            "    /V    playback (volume) percentage\n"
-            "    /h    capture (mic) mute\n"
-            "    /H    capture (mic) percentage\n"
-            "    /m    microphone state\n"
-            "    /c    camera state\n"
-            "    /Z    user\n"
-            "    /k    outdated kernel indicator\n   ")
-      .default_value(" /mm | /v /V%v /h /H%c | /e /E /N /W%w | /a /A /B%b "
-                     "/R /L%l | /C%c /P°C | /M%m /S%s /I%d | /T | /k /Z ");
+      .help(
+        fmt::format("custom status with the following interpreted sequences:\n"
+                    "    {0}{0}    a literal /\n"
+                    "    {0}T    current time\n"
+                    "    {0}Y    uptime\n"
+                    "    {0}I    disk usage\n"
+                    "    {0}S    swap usage\n"
+                    "    {0}M    memory usage\n"
+                    "    {0}C    CPU usage\n"
+                    "    {0}P    CPU temperature\n"
+                    "    {0}1    1 minute load average\n"
+                    "    {0}2    5 minute load average\n"
+                    "    {0}3    15 minute load average\n"
+                    "    {0}a    battery state\n"
+                    "    {0}A    battery device\n"
+                    "    {0}B    battery percentage\n"
+                    "    {0}R    battery time remaining\n"
+                    "    {0}L    backlight percentage\n"
+                    "    {0}e    network status\n"
+                    "    {0}E    network device\n"
+                    "    {0}N    network SSID\n"
+                    "    {0}W    network strength percentage\n"
+                    "    {0}U    network upload\n"
+                    "    {0}D    network download\n"
+                    "    {0}v    playback (volume) mute\n"
+                    "    {0}V    playback (volume) percentage\n"
+                    "    {0}h    capture (mic) mute\n"
+                    "    {0}H    capture (mic) percentage\n"
+                    "    {0}m    microphone state\n"
+                    "    {0}c    camera state\n"
+                    "    {0}Z    user\n"
+                    "    {0}k    outdated kernel indicator\n   ",
+          escape_seq))
+      .default_value(default_status);
 
     // Parse arguments
     try {
@@ -212,7 +231,7 @@ int main(int argc, char** argv) {
     sbar::Inotify& inotify = sbar::Inotify::get();
     sbar::Watcher watcher = inotify.watch(sbar::notify_path);
 
-    const Milliseconds inotify_timeout = Milliseconds(10);
+    const Milliseconds inotify_timeout = Milliseconds(50);
 
     sbar::field fields_to_update = sbar::field_all;
     bool update_now = false;
