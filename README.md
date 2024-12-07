@@ -1,3 +1,8 @@
+[![Python 3.7+](https://img.shields.io/badge/python-%3E%3D%20v3.7-blue)](https://www.python.org/downloads/release/python-370/)
+[![](https://badgen.net/github/last-commit/cshmookler/status_bar)](https://github.com/cshmookler/status_bar/commits/master)
+[![](https://badgen.net/github/license/cshmookler/status_bar)](https://github.com/cshmookler/status_bar/blob/master/LICENSE)
+
+
 # **status_bar**
 
 Status bar for [dwm](https://dwm.suckless.org). Customizable at runtime and updates instantly.
