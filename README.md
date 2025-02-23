@@ -4,7 +4,7 @@ Status bar for [dwm](https://dwm.suckless.org). Customizable at runtime and upda
 
 ## Build from Source
 
-### 1.&nbsp; Install a C++ compiler, Meson, GoogleTest (optional), argparse, X11 client-side libraries, and ALSA libraries.
+### 1.&nbsp; Install a C++ compiler, Meson, GoogleTest (optional), [{fmt}](https://fmt.dev), argparse, X11 client-side libraries, and ALSA libraries.
 
 #### Linux (Arch):
 
