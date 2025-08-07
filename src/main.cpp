@@ -18,6 +18,10 @@
 #include "../include/notify.h"
 #include "channel.hpp"
 
+using std::invalid_argument;
+
+namespace ch = std::chrono;
+
 const std::string error_status = "❌";
 
 bool keep_running = true;
@@ -386,6 +390,7 @@ template<typename... field_generator_args_t>
             return backlight.get_name();
         }
         case sbar_field_backlight_brightness: {
+            std::cout << "backlight" << std::endl;
             auto brightness = backlight.get_brightness();
             if (brightness.has_error()) {
                 return RES_TRACE(brightness.error());
@@ -1495,26 +1500,79 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    ch::milliseconds time_between_updates(1000);
+    ch::time_point time_at_last_update =
+      ch::system_clock::now() - time_between_updates;
+
     while (keep_running) {
-        auto update_result = persistent_state.cpu_usage.update();
-        if (update_result.failure()) {
-            std::cerr << update_result.error() << std::endl;
+        auto time_elapsed = ch::system_clock::now() - time_at_last_update;
+        if (time_elapsed < time_between_updates) {
+            auto time_to_wait = ch::duration_cast<ch::milliseconds>(
+              time_between_updates - time_elapsed);
+
+            auto poll_result = channel->poll(time_to_wait);
+            if (poll_result.has_error()) {
+                std::cerr << poll_result.error() << std::endl;
+                continue;
+            }
+            if (! poll_result.value()) {
+                continue;
+            }
+
+            auto receive_result = channel->receive();
+            if (receive_result.has_value()) {
+                try {
+                    persistent_state.fields_to_update =
+                      static_cast<sbar_field_t>(
+                        std::stoull(receive_result.value()));
+                } catch (const invalid_argument& exception) {
+                    std::cerr << exception.what() << std::endl;
+                }
+            } else {
+                std::cerr << receive_result.error() << std::endl;
+            }
+        } else {
+            time_at_last_update = ch::system_clock::now();
         }
 
-        auto system_state = syst::get_system_info();
-        if (system_state.has_value()) {
-            persistent_state.system_info = system_state.value();
-        } else {
-            persistent_state.system_info = std::nullopt;
-            std::cerr << system_state.error() << std::endl;
+        const auto cpu_usage_fields =
+          static_cast<sbar_field_t>(sbar_field_cpu | sbar_field_cpu_per_core);
+
+        if ((persistent_state.fields_to_update & cpu_usage_fields) != 0) {
+            auto update_result = persistent_state.cpu_usage.update();
+            if (update_result.failure()) {
+                std::cerr << update_result.error() << std::endl;
+            }
         }
 
-        auto sound_mixer = syst::get_sound_mixer();
-        if (sound_mixer.has_value()) {
-            persistent_state.sound_mixer = sound_mixer.value();
-        } else {
-            persistent_state.sound_mixer = std::nullopt;
-            std::cerr << sound_mixer.error() << std::endl;
+        const auto system_info_fields = static_cast<sbar_field_t>(
+          sbar_field_uptime | sbar_field_swap | sbar_field_memory
+          | sbar_field_load_1 | sbar_field_load_5 | sbar_field_load_15);
+
+        if ((persistent_state.fields_to_update & system_info_fields) != 0) {
+            auto system_state = syst::get_system_info();
+            if (system_state.has_value()) {
+                persistent_state.system_info = system_state.value();
+            } else {
+                persistent_state.system_info = std::nullopt;
+                std::cerr << system_state.error() << std::endl;
+            }
+        }
+
+        const auto sound_mixer_fields = static_cast<sbar_field_t>(
+          sbar_field_audio_playback | sbar_field_audio_playback_name
+          | sbar_field_audio_playback_status | sbar_field_audio_playback_volume
+          | sbar_field_audio_capture | sbar_field_audio_capture_name
+          | sbar_field_audio_capture_status | sbar_field_audio_capture_volume);
+
+        if ((persistent_state.fields_to_update & sound_mixer_fields) != 0) {
+            auto sound_mixer = syst::get_sound_mixer();
+            if (sound_mixer.has_value()) {
+                persistent_state.sound_mixer = sound_mixer.value();
+            } else {
+                persistent_state.sound_mixer = std::nullopt;
+                std::cerr << sound_mixer.error() << std::endl;
+            }
         }
 
         auto status = make_given_status(persistent_state.status_fmt,
@@ -1526,23 +1584,6 @@ int main(int argc, char** argv) {
         auto result = root_window->set_title(status);
         if (result.failure()) {
             std::cerr << result.error() << std::endl;
-        }
-
-        auto poll_result = channel->poll(std::chrono::seconds(1));
-        if (poll_result.has_error()) {
-            std::cerr << poll_result.error() << std::endl;
-            continue;
-        }
-        if (! poll_result.value()) {
-            continue;
-        }
-
-        auto receive_result = channel->receive();
-        if (receive_result.has_value()) {
-            persistent_state.fields_to_update =
-              static_cast<sbar_field_t>(std::stoull(receive_result.value()));
-        } else {
-            std::cerr << receive_result.error() << std::endl;
         }
     }
 
