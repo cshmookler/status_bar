@@ -94,7 +94,7 @@ struct persistent_state_t {
 
     // persistent system_info structures
     std::optional<syst::system_info_t> system_info;
-    std::optional<std::reference_wrapper<syst::sound_mixer_t>> sound_mixer;
+    std::unique_ptr<syst::sound_mixer_t> sound_mixer;
     syst::cpu_usage_t cpu_usage;
 
     // fields to update
@@ -390,7 +390,6 @@ template<typename... field_generator_args_t>
             return backlight.get_name();
         }
         case sbar_field_backlight_brightness: {
-            std::cout << "backlight" << std::endl;
             auto brightness = backlight.get_brightness();
             if (brightness.has_error()) {
                 return RES_TRACE(brightness.error());
@@ -1227,13 +1226,13 @@ template<typename... field_generator_args_t>
             return status;
         }
         case sbar_field_audio_playback: {
-            if (! persistent_state.sound_mixer.has_value()) {
+            if (persistent_state.sound_mixer == nullptr) {
                 return RES_NEW_ERROR(
                   "Failed to get audio playback info due to a previous failure "
                   "to get a sound mixer.");
             }
 
-            auto controls = persistent_state.sound_mixer->get().get_controls();
+            auto controls = persistent_state.sound_mixer->get_controls();
 
             std::string status;
 
@@ -1253,13 +1252,13 @@ template<typename... field_generator_args_t>
             return status;
         }
         case sbar_field_audio_capture: {
-            if (! persistent_state.sound_mixer.has_value()) {
+            if (persistent_state.sound_mixer == nullptr) {
                 return RES_NEW_ERROR(
                   "Failed to get audio capture info due to a previous failure "
                   "to get a sound mixer.");
             }
 
-            auto controls = persistent_state.sound_mixer->get().get_controls();
+            auto controls = persistent_state.sound_mixer->get_controls();
 
             std::string status;
 
@@ -1560,17 +1559,14 @@ int main(int argc, char** argv) {
         }
 
         const auto sound_mixer_fields = static_cast<sbar_field_t>(
-          sbar_field_audio_playback | sbar_field_audio_playback_name
-          | sbar_field_audio_playback_status | sbar_field_audio_playback_volume
-          | sbar_field_audio_capture | sbar_field_audio_capture_name
-          | sbar_field_audio_capture_status | sbar_field_audio_capture_volume);
+          sbar_field_audio_playback | sbar_field_audio_capture);
 
         if ((persistent_state.fields_to_update & sound_mixer_fields) != 0) {
             auto sound_mixer = syst::get_sound_mixer();
             if (sound_mixer.has_value()) {
-                persistent_state.sound_mixer = sound_mixer.value();
+                persistent_state.sound_mixer.reset(sound_mixer.release());
             } else {
-                persistent_state.sound_mixer = std::nullopt;
+                persistent_state.sound_mixer = nullptr;
                 std::cerr << sound_mixer.error() << std::endl;
             }
         }
