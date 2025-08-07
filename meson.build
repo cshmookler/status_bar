@@ -18,14 +18,8 @@ conf_data = configuration_data()
 conf_data.set('version', meson.project_version())
 configure_file(
     configuration : conf_data,
-    input : include_dir / 'version.hpp.in',
-    output : 'version.hpp',
-)
-
-dep_fmt = dependency(
-    'fmt',
-    required : true,
-    method : 'auto',
+    input : include_dir / 'version.h.in',
+    output : 'version.h',
 )
 
 dep_x11 = dependency(
@@ -33,11 +27,19 @@ dep_x11 = dependency(
     required : true,
     method : 'auto',
 )
-
 dep_alsa = dependency(
     'alsa',
     required : true,
     method : 'auto',
+)
+cpp = meson.get_compiler('cpp')
+lib_system_state = cpp.find_library(
+    'system_state',
+    required : true,
+)
+lib_inotify_ipc = cpp.find_library(
+    'inotify_ipc',
+    required : true,
 )
 
 exe_status_bar = executable(
@@ -45,61 +47,28 @@ exe_status_bar = executable(
     files(
         src_dir / 'main.cpp',
         src_dir / 'version.cpp',
-        src_dir / 'utils.cpp',
-        src_dir / 'notify.cpp',
-        src_dir / 'watcher.cpp',
-        src_dir / 'status.cpp',
         src_dir / 'root_window.cpp',
-        src_dir / 'components' / 'time.cpp',
-        src_dir / 'components' / 'memory.cpp',
-        src_dir / 'components' / 'cpu.cpp',
-        src_dir / 'components' / 'load_average.cpp',
-        src_dir / 'components' / 'battery.cpp',
-        src_dir / 'components' / 'backlight.cpp',
-        src_dir / 'components' / 'network.cpp',
-        src_dir / 'components' / 'sound.cpp',
-        src_dir / 'components' / 'microphone.cpp',
-        src_dir / 'components' / 'camera.cpp',
-        src_dir / 'components' / 'user.cpp',
-        src_dir / 'components' / 'kernel_status.cpp',
+        src_dir / 'notify.cpp',
     ),
-    dependencies : [ dep_fmt, dep_x11, dep_alsa ],
+    dependencies : [ dep_x11, dep_alsa, lib_system_state, lib_inotify_ipc ],
     install : true,
 )
 
-lib_version = shared_library(
-    'status_bar_version',
-    files(
-        src_dir / 'version.cpp',
-    ),
-    version : meson.project_version(),
-    install : true,
+lib_status_bar_notify_headers = files(
+    build_dir / 'version.h',
+    include_dir / 'notify.h',
 )
-lib_notify = shared_library(
+lib_status_bar_notify = library(
     'status_bar_notify',
     files(
+        src_dir / 'version.cpp',
         src_dir / 'notify.cpp',
     ),
     version : meson.project_version(),
+    dependencies : [ lib_inotify_ipc ],
     install : true,
 )
-lib_watcher = shared_library(
-    'status_bar_watcher',
-    files(
-        src_dir / 'watcher.cpp',
-    ),
-    version : meson.project_version(),
-    install : true,
-)
-
-install_headers(
-    files(
-        build_dir / 'version.hpp',
-        include_dir / 'notify.hpp',
-        include_dir / 'watcher.hpp',
-    ),
-    subdir : 'status_bar',
-)
+install_headers(lib_status_bar_notify_headers, subdir : 'status_bar')
 
 dep_gtest_main = dependency(
     'gtest_main',
@@ -111,44 +80,12 @@ if dep_gtest_main.found()
     test_version = executable(
         'version',
         files(
-            tests_dir / 'version_test.cpp',
+            tests_dir / 'version.test.cpp',
             src_dir / 'version.cpp',
         ),
         dependencies : dep_gtest_main,
     )
     test('version', test_version)
-
-    test_status = executable(
-        'status',
-        files(
-            tests_dir / 'status_test.cpp',
-            src_dir / 'utils.cpp',
-            src_dir / 'status.cpp',
-            src_dir / 'components' / 'time.cpp',
-            src_dir / 'components' / 'memory.cpp',
-            src_dir / 'components' / 'cpu.cpp',
-            src_dir / 'components' / 'load_average.cpp',
-            src_dir / 'components' / 'battery.cpp',
-            src_dir / 'components' / 'backlight.cpp',
-            src_dir / 'components' / 'network.cpp',
-            src_dir / 'components' / 'sound.cpp',
-            src_dir / 'components' / 'microphone.cpp',
-            src_dir / 'components' / 'camera.cpp',
-            src_dir / 'components' / 'user.cpp',
-            src_dir / 'components' / 'kernel_status.cpp',
-        ),
-        dependencies : [dep_gtest_main, dep_alsa],
-    )
-    test('status', test_status)
-
-    test_notify = executable(
-        'notify',
-        files(
-            tests_dir / 'notify_test.cpp',
-        ),
-        dependencies : [dep_gtest_main],
-    )
-    test('notify', test_notify)
 else
     warning('Skipping tests due to missing dependencies')
 endif

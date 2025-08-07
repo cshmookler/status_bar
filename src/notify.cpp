@@ -1,42 +1,24 @@
-// Standard includes
-#include <bitset>
-#include <cstddef>
-#include <fstream>
-#include <optional>
-#include <stdexcept>
-#include <string>
+// External includes
+#include <inotify_ipc/iipc.hpp>
 
 // Local includes
-#include "../include/notify.hpp"
+#include "../include/notify.h"
+#include "channel.hpp"
 
-namespace sbar {
+extern "C" {
 
-bool notify(field fields) {
-    std::ofstream file{ notify_path };
-    if (! file.good()) {
-        return false;
+int sbar_notify(sbar_field_t fields) {
+    auto channel = iipc::get_channel(sbar::channel);
+    if (channel.has_error()) {
+        return 1;
     }
 
-    std::string fields_str =
-      std::bitset<field_count>(static_cast<size_t>(fields)).to_string();
-    file.write(
-      fields_str.data(), static_cast<std::streamsize>(fields_str.size()));
-
-    return true;
-}
-
-std::optional<field> get_notification() {
-    std::fstream file{ notify_path, std::ios_base::in | std::ios_base::ate };
-    std::string fields_str(file.tellg(), '\0');
-    file.seekg(0);
-    file.read(
-      fields_str.data(), static_cast<std::streamsize>(fields_str.size()));
-
-    try {
-        return { static_cast<field>(std::stoull(fields_str, 0, 2)) };
-    } catch (const std::invalid_argument& error) {
-        return std::nullopt;
+    auto send_result = channel->send(std::to_string(fields));
+    if (send_result.failure()) {
+        return 1;
     }
+
+    return 0;
 }
 
-} // namespace sbar
+} // extern "C"

@@ -1,10 +1,10 @@
 // Local includes
-#include "../build/version.hpp"
+#include "../build/version.h"
 
-namespace sbar {
+extern "C" {
 
-const char* get_runtime_version() {
-    return ::sbar::compiletime_version;
+const char* sbar_get_runtime_version() {
+    return sbar_compiletime_version;
 }
 
-} // namespace sbar
+} // extern "C"

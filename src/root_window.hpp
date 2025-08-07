@@ -1,42 +1,55 @@
 #pragma once
 
-/**
- * @file root_window.hpp
- * @author Caden Shmookler (cshmookler@gmail.com)
- * @brief Utilities for interacting with the root window under X.
- * @date 2024-09-10
- */
-
 // Standard includes
 #include <string>
 
+// External includes
+#include <cpp_result/all.hpp>
+
 namespace sbar {
 
+class root_window_t;
+
 /**
- * @brief Used for interacting with the root window under X.
+ * @brief Return a new root window object or an error.
+ */
+[[nodiscard]] res::optional_t<root_window_t> get_root_window();
+
+/**
+ * @brief Used for interacting with the root window on the X server.
  *
  * @code{.cpp}
- * Root_window root;
- * if (root.good()) {
- *      root.set_title("New title for the root window");
+ * auto root_window = get_root_window();
+ * if (root_window.failure()) {
+ *     std::cerr << root_window.error() << std::endl;
+ *     return 1;
  * }
+ *
+ * root_window->set_title("New title for the root window");
  * @endcode
  */
-class Root_window {
+class root_window_t {
     void* display_; // Xlib Display
 
+    root_window_t(void* display);
+
+    friend res::optional_t<root_window_t> get_root_window();
+
   public:
-    Root_window();
+    root_window_t(const root_window_t&) = delete;
+    root_window_t(root_window_t&&) noexcept;
+    root_window_t& operator=(const root_window_t&) = delete;
+    root_window_t& operator=(root_window_t&&) noexcept = default;
 
-    Root_window(const Root_window&) = delete;
-    Root_window(Root_window&&) noexcept = delete;
-    Root_window& operator=(const Root_window&) = delete;
-    Root_window& operator=(Root_window&&) noexcept = default;
+    ~root_window_t();
 
-    ~Root_window();
-
-    [[nodiscard]] bool good() const;
-    bool set_title(const std::string& title);
+    /**
+     * @brief Set the title of the root window.
+     *
+     * @param[in] title - The new title represented as a string.
+     * @return a result indicating success or failure.
+     */
+    res::result_t set_title(const std::string& title);
 };
 
 } // namespace sbar
