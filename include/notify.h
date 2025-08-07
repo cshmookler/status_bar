@@ -85,6 +85,11 @@ enum sbar_field_t : unsigned long long {
     sbar_field_outdated_kernel = sbar_field_kernel << 1,
     sbar_field_all = (sbar_field_outdated_kernel << 1) - 1ULL,
 };
+typedef enum sbar_field_t sbar_field_t;
+
+/**
+ * @brief The total number of fields to select from.
+ */
 const unsigned long long sbar_total_fields = __builtin_ctzll(sbar_field_all + 1ULL);
 
 /**
