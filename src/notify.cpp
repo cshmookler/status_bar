@@ -7,7 +7,7 @@
 
 extern "C" {
 
-int sbar_notify(sbar_field_t fields) {
+int sbar_notify(sbar_top_field_t fields) {
     auto channel = iipc::get_channel(sbar::channel);
     if (channel.has_error()) {
         return 1;

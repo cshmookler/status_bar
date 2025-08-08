@@ -113,6 +113,7 @@ using field_generator_t = res::optional_t<std::string> (*)(
 
 template<typename... field_generator_args_t>
 [[nodiscard]] std::string make_given_status(const std::string& fmt,
+  bool top_level,
   persistent_state_t& persistent_state,
   field_assigner_t field_assigner,
   field_generator_t<const field_generator_args_t&...> generator,
@@ -149,7 +150,9 @@ template<typename... field_generator_args_t>
         size_t field_index = __builtin_ctzll(field);
 
         if ((field & persistent_state.fields_to_update) == sbar_field_none) {
-            status += persistent_state.fields.at(field_index);
+            if (top_level) {
+                status += persistent_state.fields.at(field_index);
+            }
             continue;
         }
 
@@ -165,7 +168,9 @@ template<typename... field_generator_args_t>
             std::cerr << result.error() << std::endl;
         }
 
-        persistent_state.fields.at(field_index) = status_part;
+        if (top_level) {
+            persistent_state.fields.at(field_index) = status_part;
+        }
         status += status_part;
     }
 
@@ -356,6 +361,7 @@ template<typename... field_generator_args_t>
 
             for (const auto& part : parts.value()) {
                 status += make_given_status(persistent_state.part_fmt,
+                  false,
                   persistent_state,
                   part_field_assigner,
                   part_field_generator,
@@ -1011,6 +1017,7 @@ template<typename... field_generator_args_t>
                 }
 
                 status += make_given_status(persistent_state.disk_fmt,
+                  false,
                   persistent_state,
                   disk_field_assigner,
                   disk_field_generator,
@@ -1172,6 +1179,7 @@ template<typename... field_generator_args_t>
 
             for (const auto& backlight : backlights.value()) {
                 status += make_given_status(persistent_state.backlight_fmt,
+                  false,
                   persistent_state,
                   backlight_field_assigner,
                   backlight_field_generator,
@@ -1190,6 +1198,7 @@ template<typename... field_generator_args_t>
 
             for (const auto& battery : batteries.value()) {
                 status += make_given_status(persistent_state.battery_fmt,
+                  false,
                   persistent_state,
                   battery_field_assigner,
                   battery_field_generator,
@@ -1217,6 +1226,7 @@ template<typename... field_generator_args_t>
                 }
 
                 status += make_given_status(persistent_state.network_fmt,
+                  false,
                   persistent_state,
                   network_field_assigner,
                   network_field_generator,
@@ -1243,6 +1253,7 @@ template<typename... field_generator_args_t>
                 }
 
                 status += make_given_status(persistent_state.audio_playback_fmt,
+                  false,
                   persistent_state,
                   audio_playback_field_assigner,
                   audio_playback_field_generator,
@@ -1269,6 +1280,7 @@ template<typename... field_generator_args_t>
                 }
 
                 status += make_given_status(persistent_state.audio_capture_fmt,
+                  false,
                   persistent_state,
                   audio_capture_field_assigner,
                   audio_capture_field_generator,
@@ -1572,6 +1584,7 @@ int main(int argc, char** argv) {
         }
 
         auto status = make_given_status(persistent_state.status_fmt,
+          true,
           persistent_state,
           status_field_assigner,
           status_field_generator);

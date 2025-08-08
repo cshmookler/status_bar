@@ -90,7 +90,51 @@ typedef enum sbar_field_t sbar_field_t;
 /**
  * @brief The total number of fields to select from.
  */
-const unsigned long long sbar_total_fields = __builtin_ctzll(sbar_field_all + 1ULL);
+const unsigned long long sbar_total_fields =
+  __builtin_ctzll(sbar_field_all + 1ULL);
+
+enum sbar_top_field_t : unsigned long long {
+    sbar_top_field_none = sbar_field_none,
+    sbar_top_field_time = sbar_field_time,
+    sbar_top_field_uptime = sbar_field_uptime,
+    sbar_top_field_disk = sbar_field_disk | sbar_field_disk_name
+      | sbar_field_disk_rotational | sbar_field_disk_read_only
+      | sbar_field_disk_removable | sbar_field_disk_size
+      | sbar_field_disk_in_flight | sbar_field_part | sbar_field_part_name
+      | sbar_field_part_read_only | sbar_field_part_mount
+      | sbar_field_part_filesystem | sbar_field_part_size
+      | sbar_field_part_usage | sbar_field_part_in_flight,
+    sbar_top_field_swap = sbar_field_swap,
+    sbar_top_field_memory = sbar_field_memory,
+    sbar_top_field_cpu = sbar_field_cpu,
+    sbar_top_field_cpu_per_core = sbar_field_cpu_per_core,
+    sbar_top_field_highest_temp = sbar_field_highest_temp,
+    sbar_top_field_lowest_temp = sbar_field_lowest_temp,
+    sbar_top_field_load_1 = sbar_field_load_1,
+    sbar_top_field_load_5 = sbar_field_load_5,
+    sbar_top_field_load_15 = sbar_field_load_15,
+    sbar_top_field_backlight = sbar_field_backlight | sbar_field_backlight_name
+      | sbar_field_backlight_brightness,
+    sbar_top_field_battery = sbar_field_battery | sbar_field_battery_name
+      | sbar_field_battery_status | sbar_field_battery_charge
+      | sbar_field_battery_capacity | sbar_field_battery_current
+      | sbar_field_battery_power | sbar_field_battery_time,
+    sbar_top_field_network = sbar_field_network | sbar_field_network_name
+      | sbar_field_network_status | sbar_field_network_packets_down
+      | sbar_field_network_packets_up | sbar_field_network_bytes_down
+      | sbar_field_network_bytes_up,
+    sbar_top_field_audio_playback = sbar_field_audio_playback
+      | sbar_field_audio_playback_name | sbar_field_audio_playback_status
+      | sbar_field_audio_playback_volume,
+    sbar_top_field_audio_capture = sbar_field_audio_capture
+      | sbar_field_audio_capture_name | sbar_field_audio_capture_status
+      | sbar_field_audio_capture_volume,
+    sbar_top_field_username = sbar_field_username,
+    sbar_top_field_kernel = sbar_field_kernel,
+    sbar_top_field_outdated_kernel = sbar_field_outdated_kernel,
+    sbar_top_field_all = sbar_field_all,
+};
+typedef enum sbar_top_field_t sbar_top_field_t;
 
 /**
  * @brief Notifies the status bar that certain specified fields must be
@@ -100,7 +144,7 @@ const unsigned long long sbar_total_fields = __builtin_ctzll(sbar_field_all + 1U
  * @return 0 if this notification was successfully dispatched and 1
  * otherwise.
  */
-int sbar_notify(sbar_field_t fields);
+int sbar_notify(sbar_top_field_t fields);
 
 #ifdef __cplusplus
 } // extern "C"
