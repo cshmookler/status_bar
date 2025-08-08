@@ -141,10 +141,18 @@ typedef enum sbar_top_field_t sbar_top_field_t;
  * updated immediately.
  *
  * @param[in] fields - The fields to be updated.
+ * @param[out] error - An error message describing a failure.
  * @return 0 if this notification was successfully dispatched and 1
  * otherwise.
  */
-int sbar_notify(sbar_top_field_t fields);
+int sbar_notify(sbar_top_field_t fields, char** error);
+
+/**
+ * @brief Free an error message.
+ *
+ * @param[in] error - The error message to free.
+ */
+void sbar_error_free(char* error);
 
 #ifdef __cplusplus
 } // extern "C"
