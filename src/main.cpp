@@ -1357,7 +1357,7 @@ int main(int argc, char** argv) {
     argparser.add_description("Status bar for dwm (https://dwm.suckless.org). "
                               "Customizable at runtime and updates instantly.");
 
-    std::string default_fmt = "/P/C/N/B/b /W%c /H° /M%m /S%s |/D /T | /k /n";
+    std::string default_fmt = "/P/C/N/B/D/b /W%c /H° /M%m /S%s | /T | /k /n";
     argparser.add_argument("-s", "--status")
       .nargs(1)
       .help(
