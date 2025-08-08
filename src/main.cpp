@@ -1385,7 +1385,7 @@ int main(int argc, char** argv) {
         "    /k    outdated kernel indicator\n    ")
       .default_value(default_fmt);
 
-    std::string default_disk_fmt = "/P /R/E /F |";
+    std::string default_disk_fmt = "/P /R/E |";
     argparser.add_argument("-D", "--disk-status")
       .nargs(1)
       .help("custom disk status with the following interpreted sequences:\n"
